@@ -13,13 +13,13 @@ UCLASS(Blueprintable)
 class ASTEROIDS_API UHighScoreCalculator : public UObject
 {
 	GENERATED_BODY()
-	
+
 public:
-	bool static IsNewHighScore(int newScore);
+	bool static IsNewHighScore(const int NewHighScore);
 
 	UFUNCTION(BlueprintCallable, Category = "Save High Score")
-	static void SetNewHighScores(FHighScore newHighScore);
+	static void SetNewHighScores(const FHighScore& NewHighScore);
 
 private:
-	static const int MAX_HIGH_SCORES = 5;
+	static constexpr int Max_High_Scores = 5;
 };

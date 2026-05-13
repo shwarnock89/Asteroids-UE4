@@ -23,10 +23,10 @@ protected:
 private:
 
 	UPROPERTY()
-	AAsteroidManager* asteroidManager;
+	AAsteroidManager* AsteroidManager;
 
 	UFUNCTION()
-	void InitializeAsteroidManager();
+	void InitializeAsteroidManager() const;
 };
 
 

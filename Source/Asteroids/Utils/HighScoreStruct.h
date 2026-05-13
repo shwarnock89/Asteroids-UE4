@@ -7,23 +7,21 @@ struct FHighScore
 {
 	GENERATED_BODY()
 
-public:
-
-	inline FHighScore()
+	FHighScore()
 	{
-		initials = FText();
-		highScore = NULL;
+		Initials = FText();
+		HighScore = NULL;
 	}
 
-	inline FHighScore(FText initials, int score)
+	FHighScore(const FText& InInitials, const int InScore)
 	{
-		this->initials = initials;
-		this->highScore = score;
+		Initials = InInitials;
+		HighScore = InScore;
 	}
 
 	UPROPERTY(BlueprintReadWrite)
-	FText initials;
+	FText Initials;
 
 	UPROPERTY(BlueprintReadWrite)
-	int highScore;
+	int HighScore;
 };

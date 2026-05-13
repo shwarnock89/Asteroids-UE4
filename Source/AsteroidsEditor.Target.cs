@@ -9,5 +9,9 @@ public class AsteroidsEditorTarget : TargetRules
 	{
 		Type = TargetType.Editor;
 		ExtraModuleNames.Add("Asteroids");
+		
+		DefaultBuildSettings = BuildSettingsVersion.V6;
+        IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+        CppStandard = CppStandardVersion.Cpp20; // Required for 5.7
 	}
 }

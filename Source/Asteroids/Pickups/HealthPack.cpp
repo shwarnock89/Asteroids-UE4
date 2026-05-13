@@ -1,44 +1,53 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "HealthPack.h"
-#include "UObject/ConstructorHelpers.h"
+#include "Asteroids/AsteroidsGameInstance.h"
+#include "Asteroids/AsteroidsPawn.h"
+#include "Asteroids/Utils/ScreenUtil.h"
+#include "Asteroids/WorldBoundsVolume.h"
+#include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Utils/ScreenUtil.h"
-#include "AsteroidsGameInstance.h"
+#include "UObject/ConstructorHelpers.h"
 
-// Sets default values
-AHealthPack::AHealthPack()
-{
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> HealthPack(TEXT("/Game/Asteroids/Meshes/HealthPack/Health_Pack.Health_Pack"));
-	// Create the mesh component
-	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("HealthPack"));
-	RootComponent = StaticMeshComponent;
-	StaticMeshComponent->SetStaticMesh(HealthPack.Object);
-	StaticMeshComponent->SetCollisionProfileName(TEXT("Pickup"));
-	StaticMeshComponent->SetWorldLocation(FVector::ZeroVector);
-	StaticMeshComponent->BodyInstance.SetCollisionProfileName(TEXT("Pickup"));
-	StaticMeshComponent->OnComponentHit.AddDynamic(this, &AHealthPack::OnHit);
-}
-
-// Called when the game starts or when spawned
 void AHealthPack::BeginPlay()
 {
 	Super::BeginPlay();
-	
-	FVector2D ScreenSize = UScreenUtil::GetScreenSize();
-	FVector2D SpawnLocation = FVector2D(FMath::RandRange(SpawnBuffer, ScreenSize.X - SpawnBuffer), FMath::RandRange(SpawnBuffer, ScreenSize.Y - SpawnBuffer));
 
-	FVector WorldLocation = UScreenUtil::GetWorldPosFromScreenPos(SpawnLocation, this);
+	const FVector WorldLocation = AWorldBoundsVolume::GetValidWorldLocation();
 	SetActorLocation(WorldLocation);
 
 	SetActorScale3D(FVector(.5, .5, .5));
+
+	USphereComponent* SphereComponent = FindComponentByClass<USphereComponent>();
+	if (!ensureAlways(IsValid(SphereComponent)))
+	{
+		return;
+	}
+
+	SphereComponent->OnComponentBeginOverlap.AddDynamic(this, &AHealthPack::OnBeginOverlap);
 }
 
-void AHealthPack::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+void AHealthPack::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	FName pro = OtherComp->GetCollisionProfileName();
-	if (OtherComp->GetCollisionProfileName() == FName("Pawn"))
+	Super::EndPlay(EndPlayReason);
+
+	USphereComponent* SphereComponent = FindComponentByClass<USphereComponent>();
+	if (!ensureAlways(IsValid(SphereComponent)))
+	{
+		return;
+	}
+
+	SphereComponent->OnComponentBeginOverlap.RemoveDynamic(this, &AHealthPack::OnBeginOverlap);
+}
+
+void AHealthPack::OnBeginOverlap(UPrimitiveComponent*, AActor*, UPrimitiveComponent* OtherComp, int32, bool, const FHitResult&)
+{
+	if (!ensureAlways(IsValid(OtherComp) && IsValid(OtherComp->GetOwner())))
+	{
+		return;
+	}
+
+	if (OtherComp->GetOwner()->IsA<AAsteroidsPawn>())
 	{
 		FMessage message = FMessage();
 		message.floatMessage = HealthIncrease;

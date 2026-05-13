@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Utils/Messanger.h"
 #include "GameFramework/Actor.h"
+#include "Utils/Messanger.h"
+
 #include "Asteroid.generated.h"
 
 UCLASS()
@@ -12,33 +13,33 @@ class ASTEROIDS_API AAsteroid : public AActor
 {
 	GENERATED_BODY()
 
-	/* The mesh component */
-	UPROPERTY(Category = Mesh, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UStaticMeshComponent* AsteroidMeshComponent;
-	
-public:	
+public:
+
 	// Sets default values for this actor's properties
 	AAsteroid();
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
-	void Initialize(EStartSides::START_SIDE startSide, ESizes::SIZE size);
-
-	UFUNCTION()
-	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	void Initialize(const EStartSides::START_SIDE InStartSide, const ESizes::SIZE InSize);
 
 private:
-	float MoveSpeed;
-	ESizes::SIZE Size;
-	EStartSides::START_SIDE StartSide;
-	FVector MoveDirection;
-	FVector rotationSpeed;
-	FRotator rotation;
-	float buffer;
+
+	// Called every frame
+	virtual void BeginPlay() override;
+	virtual void Tick(const float DeltaTime) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	UFUNCTION()
+	void OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	float MoveSpeed = 0.0f;
+
+	ESizes::SIZE Size = ESizes::SIZE::None;
+
+	EStartSides::START_SIDE StartSide = EStartSides::START_SIDE::None;
+
+	FVector MoveDirection = FVector::ZeroVector;
+
+	FVector RotationSpeed = FVector::ZeroVector;
+
+	FRotator Rotation = FRotator::ZeroRotator;
+	float Buffer = 0.0f;
 };
