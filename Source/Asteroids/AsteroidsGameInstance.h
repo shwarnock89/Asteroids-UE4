@@ -14,12 +14,12 @@ class ASTEROIDS_API UAsteroidsGameInstance : public UGameInstance
 
 public:
 	UFUNCTION(BlueprintCallable)
-	UMessanger* GetMessanger();
+	UMessanger* GetMessanger() const;
 
 	UAsteroidsGameInstance();
-	
+
 private:
 
 	UPROPERTY()
-	UMessanger* messanger;
+	UMessanger* Messenger = nullptr;
 };

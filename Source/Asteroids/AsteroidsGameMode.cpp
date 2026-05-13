@@ -16,13 +16,18 @@ void AAsteroidsGameMode::PostInitializeComponents()
 
 	if (GetWorld()->GetName() == FString("AsteroidsMap"))
 	{
-		FActorSpawnParameters SpawnInfo;
-		asteroidManager = GetWorld()->SpawnActor<AAsteroidManager>(FVector(0, 0, 1000), FRotator(0, 0, 0), SpawnInfo);
+		const FActorSpawnParameters SpawnInfo;
+		AsteroidManager = GetWorld()->SpawnActor<AAsteroidManager>(FVector(0, 0, 1000), FRotator(0, 0, 0), SpawnInfo);
+		if (!ensureAlways(IsValid(AsteroidManager)))
+		{
+			return;
+		}
+
 		FTimerHandle UnusedHandle;
 
 		FTimerDelegate TimerDel;
 		TimerDel.BindUFunction(this, FName("InitializeAsteroidManager"));
-		GetWorldTimerManager().SetTimer(UnusedHandle, TimerDel, 1.0f, false);
+		GetWorldTimerManager().SetTimer(UnusedHandle, FTimerDelegate::CreateUObject(this, &AAsteroidsGameMode::InitializeAsteroidManager), 1.0f, false);
 	}
 }
 
@@ -31,7 +36,7 @@ void AAsteroidsGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void AAsteroidsGameMode::InitializeAsteroidManager()
+void AAsteroidsGameMode::InitializeAsteroidManager() const
 {
-	asteroidManager->Initialize(1);
+	AsteroidManager->Initialize(1);
 }

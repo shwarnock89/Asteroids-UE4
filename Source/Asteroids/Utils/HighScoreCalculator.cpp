@@ -1,27 +1,27 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "HighScoreCalculator.h"
-#include "Kismet/GameplayStatics.h"
+#include "Asteroids/AsteroidsSaveGame.h"
 #include "HighScoreStruct.h"
-#include "AsteroidsSaveGame.h"
+#include "Kismet/GameplayStatics.h"
 
-bool UHighScoreCalculator::IsNewHighScore(int newHighScore)
+bool UHighScoreCalculator::IsNewHighScore(const int NewHighScore)
 {
-	UAsteroidsSaveGame* savedGame = (UAsteroidsSaveGame*)UGameplayStatics::LoadGameFromSlot("SaveGame", 0);
-	if (savedGame == NULL)
+	const UAsteroidsSaveGame* SavedGame = Cast<UAsteroidsSaveGame>(UGameplayStatics::LoadGameFromSlot("SaveGame", 0));
+	if (!IsValid(SavedGame))
 	{
 		return true;
 	}
 
-	TArray<FHighScore> highScores = savedGame->highScores;
-	if (highScores.Num() < MAX_HIGH_SCORES)
+	TArray<FHighScore> HighScores = SavedGame->HighScores;
+	if (HighScores.Num() < Max_High_Scores)
 	{
 		return true;
 	}
 
-	for (int i = 0; i < MAX_HIGH_SCORES; ++i)
+	for (int i = 0; i < Max_High_Scores; ++i)
 	{
-		if (newHighScore > highScores[i].highScore)
+		if (NewHighScore > HighScores[i].HighScore)
 		{
 			return true;
 		}
@@ -30,45 +30,45 @@ bool UHighScoreCalculator::IsNewHighScore(int newHighScore)
 	return false;
 }
 
-void UHighScoreCalculator::SetNewHighScores(FHighScore newHighScore)
+void UHighScoreCalculator::SetNewHighScores(const FHighScore& NewHighScore)
 {
-	UAsteroidsSaveGame* savedGame = (UAsteroidsSaveGame*)UGameplayStatics::LoadGameFromSlot("SaveGame", 0);
-	if (savedGame == NULL)
+	UAsteroidsSaveGame* SavedGame = Cast<UAsteroidsSaveGame>(UGameplayStatics::LoadGameFromSlot("SaveGame", 0));
+	if (!IsValid(SavedGame))
 	{
-		savedGame = Cast<UAsteroidsSaveGame>(UGameplayStatics::CreateSaveGameObject(UAsteroidsSaveGame::StaticClass()));
-		TArray<FHighScore> highScores;
-		highScores.Add(newHighScore);
-		for (int i = 1; i < MAX_HIGH_SCORES; ++i)
+		SavedGame = Cast<UAsteroidsSaveGame>(UGameplayStatics::CreateSaveGameObject(UAsteroidsSaveGame::StaticClass()));
+		TArray<FHighScore> HighScores;
+		HighScores.Add(NewHighScore);
+		for (int i = 1; i < Max_High_Scores; ++i)
 		{
-			highScores.Add(FHighScore(FText::FromString("AAA"), 0));
+			HighScores.Add(FHighScore(FText::FromString("AAA"), 0));
 		}
-		savedGame->highScores = highScores;
-		UGameplayStatics::SaveGameToSlot(savedGame, "SaveGame", 0);
+		SavedGame->HighScores = HighScores;
+		UGameplayStatics::SaveGameToSlot(SavedGame, "SaveGame", 0);
 		return;
 	}
-	TArray<FHighScore> highScores = savedGame->highScores;
-	int scoreCount = highScores.Num();
-	for (int i = 0; i < scoreCount; ++i)
+	TArray<FHighScore> HighScores = SavedGame->HighScores;
+	const int ScoreCount = HighScores.Num();
+	for (int i = 0; i < ScoreCount; ++i)
 	{
-		if (newHighScore.highScore > highScores[i].highScore)
+		if (NewHighScore.HighScore > HighScores[i].HighScore)
 		{
-			highScores.Insert(newHighScore, i);
+			HighScores.Insert(NewHighScore, i);
 			break;
 		}
 	}
 
-	int newScoreCount = highScores.Num();
-	if (newScoreCount == scoreCount)
+	const int NewScoreCount = HighScores.Num();
+	if (NewScoreCount == ScoreCount)
 	{
-		highScores.Add(newHighScore);
+		HighScores.Add(NewHighScore);
 	}
 
-	if (newScoreCount > MAX_HIGH_SCORES)
+	if (NewScoreCount > Max_High_Scores)
 	{
-		highScores.RemoveAt(newScoreCount - 1);
+		HighScores.RemoveAt(NewScoreCount - 1);
 	}
 
-	savedGame->highScores = highScores;
+	SavedGame->HighScores = HighScores;
 
-	UGameplayStatics::SaveGameToSlot(savedGame, "SaveGame", 0);
+	UGameplayStatics::SaveGameToSlot(SavedGame, "SaveGame", 0);
 }

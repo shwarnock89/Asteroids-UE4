@@ -3,98 +3,77 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
+#include "NativeGameplayTags.h"
 #include "Utils/Messanger.h"
+
 #include "AsteroidsPawn.generated.h"
+
+class AAsteroidsProjectile;
+struct FInputActionValue;
+class UInputAction;
+class UInputMappingContext;
+
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(FireComponentTag);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SmokeComponentTag);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(ExplosionComponentTag);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(ShipComponentTag);
 
 UCLASS(Blueprintable)
 class AAsteroidsPawn : public APawn
 {
 	GENERATED_BODY()
 
-	/* The mesh component */
-	UPROPERTY(Category = Mesh, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UStaticMeshComponent* ShipMeshComponent;
-
-	/* The Smoke component*/
-	UPROPERTY(VisibleAnywhere, Category = "ParticleEffect")
-	class UParticleSystemComponent* SmokeComponent;
-
-	/* The Fire Component */
-	UPROPERTY(VisibleAnywhere, Category = "ParticleEffect")
-	class UParticleSystemComponent* FireComponent;
-	
-	/* The Explosion Component */
-	UPROPERTY(VisibleAnywhere, Category = "ParticleEffect")
-	class UParticleSystemComponent* ExplosionComponent;
-
 public:
 	AAsteroidsPawn();
 
-	UFUNCTION(BlueprintCallable, Category = Gameplay)
-	void DealDamage(float damageAmount);
-
 	/** Offset from the ships location to spawn projectiles */
-	UPROPERTY(Category = Gameplay, EditAnywhere, BlueprintReadWrite )
+	UPROPERTY(Category = Gameplay, EditAnywhere)
 	FVector GunOffset;
-	
+
 	/* How fast the weapon will fire */
-	UPROPERTY(Category = Gameplay, EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(Category = Gameplay, EditAnywhere)
 	float FireRate;
-
-	/* The speed our ship moves around the level */
-	UPROPERTY(Category = Gameplay, EditAnywhere, BlueprintReadWrite)
-	FVector MoveSpeed;
-
-	UPROPERTY(Category = Gameplay, EditAnywhere, BlueprintReadWrite)
-	FRotator Rotation;
 
 	/** Sound to play each time we fire */
 	UPROPERTY(Category = Audio, EditAnywhere, BlueprintReadWrite)
-	class USoundBase* FireSound;
+	USoundBase* FireSound;
 
 	UFUNCTION(BlueprintCallable, Category = "Fire")
 	void FireShot();
 
-	UFUNCTION()
-	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
-
 	// Begin Actor Interface
-	virtual void Tick(float DeltaSeconds) override;
-	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
-
-	// End Actor Interface
-
-	/* Handler for the fire timer expiry */
-	void ShotTimerExpired();
-
-	// Static names for axis bindings
-	static const FName MoveForwardBinding;
-	static const FName MoveRightBinding;
-
-protected:
 	virtual void BeginPlay() override;
+	virtual void PostInitializeComponents() override;
+	virtual void Tick(const float DeltaSeconds) override;
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 private:
-	bool isDead;
-	float playerCurrentHealth;
-	float playerMaxHealth;
 
-	float playerCurrentShields;
-	float playerMaxShields;
-	float shieldRegenDelay;
-	float shieldRegenTimer;
-	bool shieldTimerActive;
-	float shieldRegenRate;
+	bool bIsDead;
 
-	void RegenerateShields(float DeltaSeconds);
+	float PlayerCurrentHealth;
+	float PlayerMaxHealth;
 
-	const FVector MaxSpeed = FVector(1000.0, 1000.0, 0);
+	float PlayerCurrentShields;
+	float PlayerMaxShields;
+	float ShieldRegenDelay;
+	float ShieldRegenTimer;
+	bool bShieldTimerActive;
+	float ShieldRegenRate;
 
-	const int MAX_BULLETS = 2;
-	int currentBullets;
+	UPROPERTY(EditDefaultsOnly)
+	float MaxSpeed = 1000.0f;
 
-	void HandleAcceleration(FVector direction, float DeltaSeconds);
+	UPROPERTY(EditDefaultsOnly)
+	int MaxBullets = 2;
+
+	int CurrentBullets = 0;
+
+	bool bIsOverlappingAsteroid = false;
+
+	FVector MoveSpeed = FVector(0.0f, 0.0f, 0.0f);
+
+	FRotator Rotation = FRotator(0.0f, 0.0f, 0.0f);
 
 	/* Flag to control firing  */
 	uint32 bCanFire : 1;
@@ -102,27 +81,79 @@ private:
 	/** Handle for efficient management of ShotTimerExpired timer */
 	FTimerHandle TimerHandle_ShotTimerExpired;
 
-	bool damageTimerActive;
-	float damageTimeDelay;
-	float currentDamageTimeDelay;
+	bool bDamageTimerActive;
+	float DamageTimeDelay;
+	float CurrentDamageTimeDelay;
 
-	UMessanger* messanger;
+	UPROPERTY()
+	UMessanger* Messenger = nullptr;
 
-	int playerScore;
+	int PlayerScore = 0;
+
+	UPROPERTY(EditDefaultsOnly)
+	float RotationSpeed = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly)
+	float ThrustStrength = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	UInputMappingContext* DefaultMappingContext = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	UInputAction* MoveAction = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	UInputAction* FireAction = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
+	TSubclassOf<AAsteroidsProjectile> ProjectileClass = nullptr;
+
+	UPROPERTY(EditDefaultsOnly)
+	float SpeedFactor = 10.0f;
+
+	/* The Smoke component*/
+	UPROPERTY()
+	UParticleSystemComponent* SmokeComponent = nullptr;
+
+	/* The Fire Component */
+	UPROPERTY()
+	UParticleSystemComponent* FireComponent = nullptr;
+
+	/* The Explosion Component */
+	UPROPERTY()
+	UParticleSystemComponent* ExplosionComponent = nullptr;
+
+	UPROPERTY()
+	UStaticMeshComponent* ShipMeshComponent = nullptr;
+
+	FVector2D LastInput = FVector2D::ZeroVector;
+
+	void DealDamage(float Damage);
+
+	void RegenerateShields(const float DeltaSeconds);
+
+	void Fire(const FInputActionValue& Value);
 
 	UFUNCTION()
-	void HandleBulletDestroyed(FMessage message);
+	void OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	UFUNCTION()
-	void HandleUpdatePlayerScore(FMessage message);
+	void OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	void HandleMovement(const FInputActionValue& Value);
+
+	/* Handler for the fire timer expiry */
+	void ShotTimerExpired();
 
 	UFUNCTION()
-	void HandleHealthPackPickedUp(FMessage message);
+	void HandleBulletDestroyed(const FMessage Message);
+
+	UFUNCTION()
+	void HandleUpdatePlayerScore(FMessage Message);
+
+	UFUNCTION()
+	void HandleHealthPackPickedUp(const FMessage Message);
 
 	UFUNCTION()
 	void DestroyPawn();
-
-public:
-	/** Returns ShipMeshComponent subobject **/
-	FORCEINLINE class UStaticMeshComponent* GetShipMeshComponent() const { return ShipMeshComponent; }
 };

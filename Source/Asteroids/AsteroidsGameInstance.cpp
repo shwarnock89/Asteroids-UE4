@@ -5,10 +5,10 @@
 
 UAsteroidsGameInstance::UAsteroidsGameInstance()
 {
-	messanger = NewObject<UMessanger>();
+	Messenger = NewObject<UMessanger>();
 }
 
-UMessanger* UAsteroidsGameInstance::GetMessanger()
+UMessanger* UAsteroidsGameInstance::GetMessanger() const
 {
-	return messanger;
+	return Messenger;
 }

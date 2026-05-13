@@ -6,37 +6,39 @@
 #include "GameFramework/Actor.h"
 #include "Utils/MessageStruct.h"
 #include "Utils/Messanger.h"
+
 #include "AsteroidManager.generated.h"
 
 UCLASS()
 class ASTEROIDS_API AAsteroidManager : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
+
 	// Sets default values for this actor's properties
 	AAsteroidManager();
 
 	UFUNCTION()
-	void Initialize(int currentLevel);
+	void Initialize(const int CurrentLevel);
 
 protected:
-	virtual void EndPlay(EEndPlayReason::Type EndPlayReason) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
-	const int SCREEN_BUFFER = 40;
+	const int Screen_Buffer = 40;
 
-	void SpawnLevelInitialAsteroids(int currentLevel);
+	void SpawnLevelInitialAsteroids(const int CurrentLevel);
 
-	int currentAsteroidCount;
-	FVector GetStartPos(EStartSides::START_SIDE side);
+	int CurrentAsteroidCount = 0;
 
-	void CreateAsteroid(FVector startPos, EStartSides::START_SIDE startSide, ESizes::SIZE size);
+	void CreateAsteroid(const FVector& StartPos, const EStartSides::START_SIDE StartSide, const ESizes::SIZE Size);
 
 	UFUNCTION()
-	void HandleAsteroidDestroyed(FMessage message);
+	void HandleAsteroidDestroyed(FMessage Message);
 
-	int spawnMultiplier;
+	int SspawnMultiplier = 0;
 
-	UMessanger* messanger;
+	UPROPERTY()
+	UMessanger* Messanger = nullptr;
 };
