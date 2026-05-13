@@ -33,8 +33,13 @@ void UHealthPackSpawner::SpawnHealthPack()
 		return;
 	}
 
-	FTransform SpawnTransform(FRotator::ZeroRotator, AWorldBoundsVolume::GetValidWorldLocation(), FVector(0.5f));
+	const FTransform SpawnTransform(FRotator::ZeroRotator, AWorldBoundsVolume::GetValidWorldLocation(), FVector(0.5f));
 	AActor* HealthPack = GetWorld()->SpawnActor(AsteroidSettings->HealthPackClass, &SpawnTransform);
+	if (!ensureAlways(IsValid(HealthPack)))
+	{
+		return;
+	}
+
 	HealthPack->OnDestroyed.AddDynamic(this, &UHealthPackSpawner::HandlePickupDestroyed);
 }
 
@@ -46,7 +51,7 @@ void UHealthPackSpawner::HandlePickupDestroyed(AActor* Actor)
 	Actor->OnDestroyed.RemoveDynamic(this, &UHealthPackSpawner::HandlePickupDestroyed);
 }
 
-void UHealthPackSpawner::Tick(float DeltaTime)
+void UHealthPackSpawner::Tick(const float DeltaTime)
 {
 	if (bHealthPackSpawned)
 	{

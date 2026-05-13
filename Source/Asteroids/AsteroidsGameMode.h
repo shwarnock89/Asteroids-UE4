@@ -3,9 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Utils/Messanger.h"
 #include "GameFramework/GameModeBase.h"
-#include "AsteroidManager.h"
+
 #include "AsteroidsGameMode.generated.h"
 
 UCLASS(MinimalAPI)

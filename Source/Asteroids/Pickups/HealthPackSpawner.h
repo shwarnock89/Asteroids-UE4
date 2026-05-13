@@ -18,7 +18,7 @@ class ASTEROIDS_API UHealthPackSpawner : public UTickableWorldSubsystem
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void Tick(const float DeltaTime) override;
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UHealthPackSpawner, STATGROUP_Tickables); }
 
 	void SpawnHealthPack();

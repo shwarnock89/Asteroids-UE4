@@ -29,7 +29,7 @@ enum class EStartSides : uint8
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUpdateLevel, const int, CurrentLevel);
 
 UCLASS()
-class ASTEROIDS_API UAsteroidManager : public UTickableWorldSubsystem
+class ASTEROIDS_API UAsteroidManager : public UWorldSubsystem
 {
 	GENERATED_BODY()
 

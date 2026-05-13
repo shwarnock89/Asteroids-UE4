@@ -81,6 +81,11 @@ bool UAsteroidManager::ShouldCreateSubsystem(UObject* Outer) const
 void UAsteroidManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+	if (!AWorldBoundsVolume::IsValidWorld())
+	{
+		return;
+	}
+
 	SpawnLevelInitialAsteroids(1);
 }
 
