@@ -15,18 +15,6 @@ class AAsteroidsGameMode : public AGameModeBase
 
 public:
 	AAsteroidsGameMode();
-
-protected:
-	virtual void PostInitializeComponents() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
-private:
-
-	UPROPERTY()
-	AAsteroidManager* AsteroidManager;
-
-	UFUNCTION()
-	void InitializeAsteroidManager() const;
 };
 
 

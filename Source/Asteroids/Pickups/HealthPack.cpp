@@ -13,11 +13,6 @@ void AHealthPack::BeginPlay()
 {
 	Super::BeginPlay();
 
-	const FVector WorldLocation = AWorldBoundsVolume::GetValidWorldLocation();
-	SetActorLocation(WorldLocation);
-
-	SetActorScale3D(FVector(.5, .5, .5));
-
 	USphereComponent* SphereComponent = FindComponentByClass<USphereComponent>();
 	if (!ensureAlways(IsValid(SphereComponent)))
 	{
@@ -47,12 +42,12 @@ void AHealthPack::OnBeginOverlap(UPrimitiveComponent*, AActor*, UPrimitiveCompon
 		return;
 	}
 
-	if (OtherComp->GetOwner()->IsA<AAsteroidsPawn>())
+	AAsteroidsPawn* AsteroidsPawn = Cast<AAsteroidsPawn>(OtherComp->GetOwner());
+	if (!IsValid(AsteroidsPawn))
 	{
-		FMessage message = FMessage();
-		message.floatMessage = HealthIncrease;
-		UAsteroidsGameInstance* gameInstance = (UAsteroidsGameInstance*) this->GetWorld()->GetGameInstance();
-		gameInstance->GetMessanger()->HealthPackPickedUp(message);
-		Destroy();
+		return;
 	}
+
+	AsteroidsPawn->HandleHealthPackPickedUp(HealthIncrease);
+	Destroy();
 }

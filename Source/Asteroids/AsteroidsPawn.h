@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "NativeGameplayTags.h"
-#include "Utils/Messanger.h"
 
 #include "AsteroidsPawn.generated.h"
 
@@ -17,6 +16,10 @@ UE_DECLARE_GAMEPLAY_TAG_EXTERN(FireComponentTag);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(SmokeComponentTag);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(ExplosionComponentTag);
 UE_DECLARE_GAMEPLAY_TAG_EXTERN(ShipComponentTag);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerHealthUpdated, const float, PlayerHealthPercentage);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerShieldUpdated, const float, PlayerCurrentShields);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDied);
 
 UCLASS(Blueprintable)
 class AAsteroidsPawn : public APawn
@@ -38,8 +41,19 @@ public:
 	UPROPERTY(Category = Audio, EditAnywhere, BlueprintReadWrite)
 	USoundBase* FireSound;
 
+	UPROPERTY(BlueprintAssignable)
+	FOnPlayerHealthUpdated OnPlayerHealthUpdated;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnPlayerShieldUpdated OnPlayerShieldUpdated;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnPlayerDied OnPlayerDied;
+
 	UFUNCTION(BlueprintCallable, Category = "Fire")
 	void FireShot();
+
+	void HandleHealthPackPickedUp(const float HealthIncreaseAmount);
 
 	// Begin Actor Interface
 	virtual void BeginPlay() override;
@@ -84,11 +98,6 @@ private:
 	bool bDamageTimerActive;
 	float DamageTimeDelay;
 	float CurrentDamageTimeDelay;
-
-	UPROPERTY()
-	UMessanger* Messenger = nullptr;
-
-	int PlayerScore = 0;
 
 	UPROPERTY(EditDefaultsOnly)
 	float RotationSpeed = 100.0f;
@@ -145,14 +154,7 @@ private:
 	/* Handler for the fire timer expiry */
 	void ShotTimerExpired();
 
-	UFUNCTION()
-	void HandleBulletDestroyed(const FMessage Message);
-
-	UFUNCTION()
-	void HandleUpdatePlayerScore(FMessage Message);
-
-	UFUNCTION()
-	void HandleHealthPackPickedUp(const FMessage Message);
+	void HandleBulletDestroyed(AActor* DestroyedActor);
 
 	UFUNCTION()
 	void DestroyPawn();

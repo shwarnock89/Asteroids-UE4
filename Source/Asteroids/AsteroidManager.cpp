@@ -2,93 +2,103 @@
 
 #include "AsteroidManager.h"
 #include "Asteroid.h"
-#include "AsteroidsGameInstance.h"
+#include "AsteroidsScoreManager.h"
 #include "Utils/AsteroidSettings.h"
 #include "Utils/ScreenUtil.h"
 #include "WorldBoundsVolume.h"
 
 // Sets default values
-AAsteroidManager::AAsteroidManager()
+UAsteroidManager::UAsteroidManager()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-
 	CurrentAsteroidCount = 0;
-	SspawnMultiplier = 0;
+	SpawnMultiplier = 0;
 }
 
-void AAsteroidManager::HandleAsteroidDestroyed(FMessage Message)
+void UAsteroidManager::HandleAsteroidDestroyed(AActor* DestroyedActor)
 {
-	const FVector AsteroidCurrentPos = Message.currentPosMessage;
-	ESizes::SIZE NewAsteroidSize;
-
-	FMessage ScoreMessage = FMessage();
-	switch (Message.asteroidSizeMessage)
+	const AAsteroid* Asteroid = Cast<AAsteroid>(DestroyedActor);
+	const FVector AsteroidCurrentPos = Asteroid->GetActorLocation();
+	ESizes NewAsteroidSize = ESizes::None;
+	float ScoreIncreaseAmount = 0;
+	bool bShouldSpawnNewAsteroids = true;
+	switch (Asteroid->GetSize())
 	{
 		case ESizes::Large:
-			ScoreMessage.intMessage = 20 * SspawnMultiplier;
-			Messanger->UpdatePlayerScore(ScoreMessage);
+			ScoreIncreaseAmount = 20 * SpawnMultiplier;
 			NewAsteroidSize = ESizes::Medium;
-			for (int k = 0; k < SspawnMultiplier; ++k)
-			{
-				CreateAsteroid(AsteroidCurrentPos, EStartSides::None, NewAsteroidSize);
-			}
 			break;
 		case ESizes::Medium:
-			ScoreMessage.intMessage = 15 * SspawnMultiplier;
-			Messanger->UpdatePlayerScore(ScoreMessage);
-			NewAsteroidSize = ESizes::Small;
-			for (int k = 0; k < SspawnMultiplier; ++k)
-			{
-				CreateAsteroid(AsteroidCurrentPos, EStartSides::None, NewAsteroidSize);
-			}
+			ScoreIncreaseAmount = 15 * SpawnMultiplier;
 			break;
 		case ESizes::Small:
-			ScoreMessage.intMessage = 10 * SspawnMultiplier;
-			Messanger->UpdatePlayerScore(ScoreMessage);
+			ScoreIncreaseAmount = 10 * SpawnMultiplier;
+			bShouldSpawnNewAsteroids = false;
 			break;
 		default:
 			checkNoEntry();
 	}
 
-	CurrentAsteroidCount -= Message.intMessage;
+	--CurrentAsteroidCount;
+
+	if (!ensureAlways(IsValid(GetWorld())))
+	{
+		return;
+	}
+
+	UAsteroidsScoreManager* ScoreManager = UAsteroidsScoreManager::GetScoreManager(*GetWorld());
+	if (!ensureAlways(IsValid(ScoreManager)))
+	{
+		return;
+	}
+
+	ScoreManager->UpdatePlayerScore(ScoreIncreaseAmount);
+
+	if (bShouldSpawnNewAsteroids)
+	{
+		for (int k = 0; k < SpawnMultiplier; ++k)
+		{
+			CreateAsteroid(AsteroidCurrentPos, EStartSides::None, NewAsteroidSize);
+		}
+	}
 
 	if (CurrentAsteroidCount == 0)
 	{
-		SpawnLevelInitialAsteroids(SspawnMultiplier + 1);
+		SpawnLevelInitialAsteroids(SpawnMultiplier + 1);
 	}
 }
 
-void AAsteroidManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
+bool UAsteroidManager::ShouldCreateSubsystem(UObject* Outer) const
 {
-	Super::EndPlay(EndPlayReason);
-}
-
-void AAsteroidManager::Initialize(const int CurrentLevel)
-{
-	const UAsteroidsGameInstance* GameInstance = static_cast<UAsteroidsGameInstance*>(GetWorld()->GetGameInstance());
-	Messanger = GameInstance->GetMessanger();
-	Messanger->OnAsteroidDestroyed.AddDynamic(this, &AAsteroidManager::HandleAsteroidDestroyed);
-	SpawnLevelInitialAsteroids(CurrentLevel);
-}
-
-void AAsteroidManager::SpawnLevelInitialAsteroids(const int CurrentLevel)
-{
-	SspawnMultiplier = CurrentLevel;
-	for (int i = 0; i < SspawnMultiplier; ++i)
+	const UWorld* World = Cast<UWorld>(Outer);
+	if (!ensureAlways(IsValid(World)))
 	{
-		const EStartSides::START_SIDE StartSide = static_cast<EStartSides::START_SIDE>(rand() % 4);
+		return false;
+	}
+
+	return World->WorldType != EWorldType::Editor && World->WorldType != EWorldType::Inactive && World->WorldType != EWorldType::EditorPreview;
+}
+
+void UAsteroidManager::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+	SpawnLevelInitialAsteroids(1);
+}
+
+void UAsteroidManager::SpawnLevelInitialAsteroids(const int CurrentLevel)
+{
+	SpawnMultiplier = CurrentLevel;
+	for (int i = 0; i < SpawnMultiplier; ++i)
+	{
+		const EStartSides StartSide = static_cast<EStartSides>(rand() % 4);
 
 		const FVector StartPos = AWorldBoundsVolume::GetValidWorldLocation();
 		CreateAsteroid(StartPos, StartSide, ESizes::Large);
 	}
 
-	FMessage Message = FMessage();
-	Message.intMessage = SspawnMultiplier;
-	Messanger->UpdateLevel(Message);
+	OnUpdateLevel.Broadcast(SpawnMultiplier);
 }
 
-void AAsteroidManager::CreateAsteroid(const FVector& StartPos, const EStartSides::START_SIDE StartSide, const ESizes::SIZE Size)
+void UAsteroidManager::CreateAsteroid(const FVector& StartPos, const EStartSides StartSide, const ESizes Size)
 {
 	const FRotator Rotation(0.0f, 0.0f, 0.0f);
 	const FActorSpawnParameters SpawnInfo;
@@ -106,6 +116,7 @@ void AAsteroidManager::CreateAsteroid(const FVector& StartPos, const EStartSides
 	}
 
 	Asteroid->Initialize(StartSide, Size);
+	Asteroid->OnDestroyed.AddDynamic(this, &UAsteroidManager::HandleAsteroidDestroyed);
 	CurrentAsteroidCount++;
 }
 

@@ -14,31 +14,6 @@ namespace EMessageTypes
 	};
 }
 
-UENUM()
-namespace ESizes
-{
-	enum SIZE
-	{
-		Large,
-		Medium,
-		Small,
-		None
-	};
-}
-
-UENUM()
-namespace EStartSides
-{
-	enum START_SIDE 
-	{ 
-		Left = 0, 
-		Right = 1, 
-		Up = 2, 
-		Down = 3, 
-		None = 20 
-	};
-}
-
 USTRUCT(BlueprintType)
 struct FMessage
 {
@@ -59,7 +34,7 @@ public:
 	TEnumAsByte<EMessageTypes::Type> typeMessage;
 
 	UPROPERTY(BlueprintReadOnly)
-	TEnumAsByte<ESizes::SIZE> asteroidSizeMessage;
+	ESizes asteroidSizeMessage;
 
 	UPROPERTY(BlueprintReadOnly)
 	FVector currentPosMessage;

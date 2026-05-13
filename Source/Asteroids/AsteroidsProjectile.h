@@ -4,11 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Utils/Messanger.h"
-#include "AsteroidsProjectile.generated.h"
 
-class UProjectileMovementComponent;
-class UStaticMeshComponent;
+#include "AsteroidsProjectile.generated.h"
 
 UCLASS()
 class AAsteroidsProjectile : public AActor
@@ -24,8 +21,5 @@ class AAsteroidsProjectile : public AActor
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	void DestroyProjectile();
-
-	UPROPERTY()
-	UMessanger* Messenger = nullptr;
 };
 

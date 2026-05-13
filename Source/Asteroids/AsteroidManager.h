@@ -4,26 +4,45 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Utils/MessageStruct.h"
-#include "Utils/Messanger.h"
 
 #include "AsteroidManager.generated.h"
 
+UENUM()
+enum class ESizes : uint8
+{
+	Large,
+	Medium,
+	Small,
+	None
+};
+
+UENUM()
+enum class EStartSides : uint8
+{
+	Left = 0,
+	Right = 1,
+	Up = 2,
+	Down = 3,
+	None = 20
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUpdateLevel, const int, CurrentLevel);
+
 UCLASS()
-class ASTEROIDS_API AAsteroidManager : public AActor
+class ASTEROIDS_API UAsteroidManager : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
 public:
 
 	// Sets default values for this actor's properties
-	AAsteroidManager();
+	UAsteroidManager();
 
-	UFUNCTION()
-	void Initialize(const int CurrentLevel);
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
-protected:
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	UPROPERTY(BlueprintAssignable)
+	FOnUpdateLevel OnUpdateLevel;
 
 private:
 	const int Screen_Buffer = 40;
@@ -32,13 +51,10 @@ private:
 
 	int CurrentAsteroidCount = 0;
 
-	void CreateAsteroid(const FVector& StartPos, const EStartSides::START_SIDE StartSide, const ESizes::SIZE Size);
+	void CreateAsteroid(const FVector& StartPos, const EStartSides StartSide, const ESizes Size);
 
 	UFUNCTION()
-	void HandleAsteroidDestroyed(FMessage Message);
+	void HandleAsteroidDestroyed(AActor* DestroyedActor);
 
-	int SspawnMultiplier = 0;
-
-	UPROPERTY()
-	UMessanger* Messanger = nullptr;
+	int SpawnMultiplier = 0;
 };

@@ -27,48 +27,13 @@ class ASTEROIDS_API UMessanger : public UObject
 
 public:
 	UPROPERTY(BlueprintAssignable)
-	FDamageDealtDelegate OnDamageDealt;
-
-	UPROPERTY()
-	FAsteroidDestroyedDelegate OnAsteroidDestroyed;
-
-	UPROPERTY(BlueprintAssignable)
 	FPlayerDiedDelegate OnPlayerDied;
-
-	UPROPERTY()
-	FFireButtonPressedDelegate OnFireButtonPressed;
-
-	UPROPERTY()
-	FBulletDestroyedDelegate OnBulletDestroyed;
-
-	UPROPERTY()
-	FUpdatePlayerScoreDelegate OnUpdatePlayerScore;
-
-	UPROPERTY(BlueprintAssignable)
-	FPlayerScoreWasUpdatedDelegate OnPlayerScoreWasUpdated;
 
 	UPROPERTY(BlueprintAssignable)
 	FHealthPackDelegate OnHealthPackPickedUp;
 
 	UPROPERTY(BlueprintAssignable)
-	FUpdateLevelDelegate OnLevelIsUpdated;
-
-	UPROPERTY(BlueprintAssignable)
-	FShieldsUpdatedDelegate OnShieldsUpdated;
-
-	UPROPERTY(BlueprintAssignable)
 	FNewHighScoreDelegate OnNewHighScore;
-
-public:
-	void UpdatePlayerHealth(FMessage message);
-	void AsteroidDestroyed(FMessage message);
-	void BulletDestroyed(FMessage message);
-	void UpdatePlayerScore(FMessage message);
-	void PlayerScoreWasUpdated(FMessage message);
-	void HealthPackPickedUp(FMessage message);
-	void UpdateLevel(FMessage message);
-	void ShieldsUpdated(FMessage message);
-	void NewHighScore(FMessage message);
 
 	UFUNCTION(BlueprintCallable)
 	void PlayerDied(FMessage message);
