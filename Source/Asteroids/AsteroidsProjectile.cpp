@@ -1,12 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserve
 
 #include "AsteroidsProjectile.h"
-#include "Components/StaticMeshComponent.h"
-#include "Engine.h"
-#include "Engine/StaticMesh.h"
-#include "UObject/ConstructorHelpers.h"
-#include "Utils/AsteroidEntitySpawned.h"
-#include "Utils/ScreenUtil.h"
+
+#include "Asteroid.h"
+#include "Components/CapsuleComponent.h"
 
 AAsteroidsProjectile::AAsteroidsProjectile()
 {
@@ -22,35 +19,54 @@ void AAsteroidsProjectile::DestroyProjectile()
 	Destroy();
 }
 
-void AAsteroidsProjectile::OnBeginOverlap(UPrimitiveComponent*, AActor*, UPrimitiveComponent*, int32, bool, const FHitResult&)
+void AAsteroidsProjectile::OnHit(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent*, FVector, const FHitResult&)
 {
+	if (bIsPendingDestroy)
+	{
+		return;
+	}
+
+	if (!ensureAlways(OtherActor))
+	{
+		return;
+	}
+
+	if (!OtherActor->IsA<AAsteroid>())
+	{
+		return;
+	}
+
 	DestroyProjectile();
+	bIsPendingDestroy = true;
+}
+
+void AAsteroidsProjectile::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	CapsuleComponent = FindComponentByClass<UCapsuleComponent>();
 }
 
 void AAsteroidsProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UAsteroidEntitySpawnerSubsystem::OnAsteroidEntitySpawned.ExecuteIfBound(this, EHandlingType::Despawn);
-
-	USphereComponent* SphereComp = FindComponentByClass<USphereComponent>();
-	if (!ensureAlways(IsValid(SphereComp)))
+	if (!ensureAlways(IsValid(CapsuleComponent)))
 	{
 		return;
 	}
 
-	SphereComp->OnComponentBeginOverlap.AddDynamic(this, &AAsteroidsProjectile::OnBeginOverlap);
+	CapsuleComponent->OnComponentHit.AddDynamic(this, &AAsteroidsProjectile::OnHit);
 }
 
 void AAsteroidsProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 
-	USphereComponent* SphereComp = FindComponentByClass<USphereComponent>();
-	if (!ensureAlways(IsValid(SphereComp)))
+	if (!ensureAlways(IsValid(CapsuleComponent)))
 	{
 		return;
 	}
 
-	SphereComp->OnComponentBeginOverlap.RemoveDynamic(this, &AAsteroidsProjectile::OnBeginOverlap);
+	CapsuleComponent->OnComponentHit.RemoveDynamic(this, &AAsteroidsProjectile::OnHit);
 }

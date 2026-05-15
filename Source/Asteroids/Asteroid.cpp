@@ -1,13 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Asteroid.h"
-#include "AsteroidsGameInstance.h"
+
 #include "AsteroidsProjectile.h"
-#include "Components/SphereComponent.h"
-#include "Components/StaticMeshComponent.h"
-#include "UObject/ConstructorHelpers.h"
-#include "Utils/AsteroidEntitySpawned.h"
-#include "Utils/ScreenUtil.h"
+#include "Components/CapsuleComponent.h"
 
 // Sets default values
 AAsteroid::AAsteroid()
@@ -15,30 +11,35 @@ AAsteroid::AAsteroid()
 	PrimaryActorTick.bCanEverTick = true;
 }
 
+void AAsteroid::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+
+	CapsuleComponent = FindComponentByClass<UCapsuleComponent>();
+}
+
 void AAsteroid::BeginPlay()
 {
 	Super::BeginPlay();
 
-	USphereComponent* SphereCollision = FindComponentByClass<USphereComponent>();
-	if (!ensureAlways(IsValid(SphereCollision)))
+	if (!ensureAlways(IsValid(CapsuleComponent)))
 	{
 		return;
 	}
 
-	SphereCollision->OnComponentBeginOverlap.AddDynamic(this, &AAsteroid::OnBeginOverlap);
+	CapsuleComponent->OnComponentHit.AddDynamic(this, &AAsteroid::OnHit);
 }
 
 void AAsteroid::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 
-	USphereComponent* SphereCollision = FindComponentByClass<USphereComponent>();
-	if (!ensureAlways(IsValid(SphereCollision)))
+	if (!ensureAlways(IsValid(CapsuleComponent)))
 	{
 		return;
 	}
 
-	SphereCollision->OnComponentBeginOverlap.RemoveDynamic(this, &AAsteroid::OnBeginOverlap);
+	CapsuleComponent->OnComponentHit.RemoveDynamic(this, &AAsteroid::OnHit);
 }
 
 // Called every frame
@@ -48,7 +49,7 @@ void AAsteroid::Tick(const float DeltaTime)
 
 	const FVector CurrentLocation = GetActorLocation();
 	const FVector Movement = MoveDirection * MoveSpeed + CurrentLocation;
-	SetActorLocation(Movement);
+	SetActorLocation(Movement, true);
 
 	const FVector RotationDelta = RotationSpeed * DeltaTime;
 	Rotation.Add(RotationDelta.X, RotationDelta.Y, 0);
@@ -60,8 +61,6 @@ void AAsteroid::Initialize(const EStartSides InStartSide, const ESizes InSize)
 	MoveSpeed = FMath::RandRange(5, 10);
 	StartSide = InStartSide;
 	Size = InSize;
-
-	UAsteroidEntitySpawnerSubsystem::OnAsteroidEntitySpawned.ExecuteIfBound(this, EHandlingType::Flip);
 
 	float Scale = 0.0f;
 	switch (Size)
@@ -90,31 +89,33 @@ void AAsteroid::Initialize(const EStartSides InStartSide, const ESizes InSize)
 
 			Scale = FMath::RandRange(7.0f, 9.0f);
 			SetActorScale3D(FVector(Scale));
-			Buffer = 75.0f;
 			break;
 		case ESizes::Medium:
 			MoveDirection = FVector(FMath::RandRange(-1.0f, 1.0f), FMath::RandRange(-1.0f, 1.0f), 0);
 			Scale = FMath::RandRange(4.0f, 6.0f);
 			SetActorScale3D(FVector(Scale));
-			Buffer = 45.0f;
 			break;
 		case ESizes::Small:
 			MoveDirection = FVector(FMath::RandRange(-1.0f, 1.0f), FMath::RandRange(-1.0f, 1.0f), 0);
 			Scale = FMath::RandRange(2.0f, 3.0f);
 			SetActorScale3D(FVector(Scale));
-			Buffer = 20.0f;
 			break;
 		default: ;
 	}
 
-	float Speed = FMath::RandRange(20, 120);
+	const float Speed = FMath::RandRange(20, 120);
 	RotationSpeed = FVector(Speed, 0, Speed);
 	Rotation = FRotator(FMath::RandRange(0, 360), FMath::RandRange(0, 360), FMath::RandRange(0, 360));
 }
 
-void AAsteroid::OnBeginOverlap(UPrimitiveComponent*, AActor*, UPrimitiveComponent* OtherComp, int32, bool, const FHitResult&)
+void AAsteroid::OnHit(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector, const FHitResult&)
 {
-	if (!ensureAlways(OtherComp && OtherComp->GetOwner()))
+	if (bIsPendingDestroy)
+	{
+		return;
+	}
+
+	if (!ensureAlways(OtherActor))
 	{
 		return;
 	}
@@ -122,5 +123,6 @@ void AAsteroid::OnBeginOverlap(UPrimitiveComponent*, AActor*, UPrimitiveComponen
 	if (OtherComp->GetOwner()->IsA<AAsteroidsProjectile>())
 	{
 		Destroy();
+		bIsPendingDestroy = true;
 	}
 }

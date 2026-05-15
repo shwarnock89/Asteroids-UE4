@@ -2,13 +2,57 @@
 
 #include "HealthPackSpawner.h"
 
+#include "Asteroids/AsteroidManager.h"
 #include "Asteroids/Utils/AsteroidSettings.h"
 #include "Asteroids/WorldBoundsVolume.h"
+#include "Components/CapsuleComponent.h"
 #include "HealthPack.h"
+
+bool UHealthPackSpawner::ShouldCreateSubsystem(UObject* Outer) const
+{
+	const UWorld* World = Cast<UWorld>(Outer);
+	if (!ensureAlways(IsValid(World)))
+	{
+		return false;
+	}
+
+	const EWorldType::Type WorldType = World->WorldType;
+	return WorldType != EWorldType::Editor && WorldType != EWorldType::EditorPreview && WorldType != EWorldType::Inactive;
+}
 
 void UHealthPackSpawner::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+
+	Collection.InitializeDependency(UAsteroidManager::StaticClass());
+
+	if (!ensureAlways(IsValid(GetWorld())))
+	{
+		return;
+	}
+
+	UAsteroidManager* AsteroidManager = GetWorld()->GetSubsystem<UAsteroidManager>();
+	if (!ensureAlways(IsValid(AsteroidManager)))
+	{
+		return;
+	}
+
+	AsteroidManager->OnUpdateLevel.AddDynamic(this, &UHealthPackSpawner::HandleLevelChanged);
+}
+
+void UHealthPackSpawner::HandleLevelChanged(const int)
+{
+	if (SpawnHealthPackTimerHandle.IsValid())
+	{
+		return;
+	}
+
+	if (!ensureAlways(IsValid(GetWorld())))
+	{
+		return;
+	}
+
+	GetWorld()->GetTimerManager().SetTimer(SpawnHealthPackTimerHandle, this, &UHealthPackSpawner::SpawnHealthPack, SpawnDelay);
 }
 
 void UHealthPackSpawner::Deinitialize()
@@ -33,12 +77,29 @@ void UHealthPackSpawner::SpawnHealthPack()
 		return;
 	}
 
-	const FTransform SpawnTransform(FRotator::ZeroRotator, AWorldBoundsVolume::GetValidWorldLocation(), FVector(0.5f));
-	AActor* HealthPack = GetWorld()->SpawnActor(AsteroidSettings->HealthPackClass, &SpawnTransform);
-	if (!ensureAlways(IsValid(HealthPack)))
+	const UWorldBoundsVolumeSubsystem* WorldBoundsVolumeSubsystem = GetWorld()->GetSubsystem<UWorldBoundsVolumeSubsystem>();
+	if (!ensureAlways(IsValid(WorldBoundsVolumeSubsystem)))
 	{
 		return;
 	}
+
+	FTransform SpawnTransform(FRotator::ZeroRotator, WorldBoundsVolumeSubsystem->GetValidWorldLocation(), FVector(0.5f));
+	AActor* HealthPack = GetWorld()->SpawnActorDeferred<AHealthPack>(AsteroidSettings->HealthPackClass, SpawnTransform);
+	if (!ensureAlways(HealthPack) && IsValid(HealthPack->GetClass()) && HealthPack->GetClass()->ImplementsInterface(UWorldBoundsHandlingInterface::StaticClass()))
+	{
+		return;
+	}
+
+	const UCapsuleComponent* CapsuleComponent = IWorldBoundsHandlingInterface::Execute_GetCapsuleComponent(HealthPack);
+	if (!ensureAlways(IsValid(CapsuleComponent)))
+	{
+		return;
+	}
+
+	const FVector Padding(CapsuleComponent->GetScaledCapsuleRadius(), CapsuleComponent->GetScaledCapsuleRadius(), 0.0f);
+	const FVector FinalLocation = WorldBoundsVolumeSubsystem->FindClosestPointToLocation(HealthPack->GetActorLocation(), Padding);
+	SpawnTransform.SetLocation(FinalLocation);
+	HealthPack->FinishSpawning(SpawnTransform);
 
 	HealthPack->OnDestroyed.AddDynamic(this, &UHealthPackSpawner::HandlePickupDestroyed);
 }
@@ -49,20 +110,22 @@ void UHealthPackSpawner::HandlePickupDestroyed(AActor* Actor)
 	bHealthPackSpawned = false;
 
 	Actor->OnDestroyed.RemoveDynamic(this, &UHealthPackSpawner::HandlePickupDestroyed);
-}
 
-void UHealthPackSpawner::Tick(const float DeltaTime)
-{
-	if (bHealthPackSpawned)
+	if (!ensureAlways(IsValid(GetWorld())))
 	{
 		return;
 	}
 
-	SpawnTimerHealth += DeltaTime;
-
-	if (SpawnTimerHealth > SpawnDelay)
+	const UAsteroidManager* AsteroidManager = GetWorld()->GetSubsystem<UAsteroidManager>();
+	if (!ensureAlways(IsValid(AsteroidManager)))
 	{
-		SpawnTimerHealth = 0.0f;
-		SpawnHealthPack();
+		return;
 	}
+
+	if (AsteroidManager->GetCurrentAsteroidCount() < AsteroidManager->GetSpawnMultiplier())
+	{
+		return;
+	}
+
+	GetWorld()->GetTimerManager().SetTimer(SpawnHealthPackTimerHandle, this, &UHealthPackSpawner::SpawnHealthPack, SpawnDelay);
 }

@@ -7,6 +7,8 @@
 
 #include "AsteroidManager.generated.h"
 
+class AAsteroid;
+
 UENUM()
 enum class ESizes : uint8
 {
@@ -41,6 +43,9 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
+	int GetCurrentAsteroidCount() const { return CurrentAsteroidCount; }
+	int GetSpawnMultiplier() const { return SpawnMultiplier; }
+
 	UPROPERTY(BlueprintAssignable)
 	FOnUpdateLevel OnUpdateLevel;
 
@@ -51,7 +56,7 @@ private:
 
 	int CurrentAsteroidCount = 0;
 
-	void CreateAsteroid(const FVector& StartPos, const EStartSides StartSide, const ESizes Size);
+	AAsteroid* CreateAsteroid(const FVector& StartPos, const EStartSides StartSide, const ESizes Size);
 
 	UFUNCTION()
 	void HandleAsteroidDestroyed(AActor* DestroyedActor);
