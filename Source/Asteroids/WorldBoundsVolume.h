@@ -3,29 +3,64 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
-#include "Utils/AsteroidEntitySpawned.h"
+#include "Engine/TriggerBox.h"
+
 #include "WorldBoundsVolume.generated.h"
 
-USTRUCT()
-struct FTrackedActor
+class AWorldBoundsVolume;
+class UCapsuleComponent;
+
+UENUM()
+enum class EHandlingType : uint8
+{
+	Despawn,
+	Flip
+};
+
+UINTERFACE()
+class UWorldBoundsHandlingInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class IWorldBoundsHandlingInterface
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	AActor* Actor;
+public:
+
+	UFUNCTION(BlueprintNativeEvent)
+	UCapsuleComponent* GetCapsuleComponent() const;
+
+	UFUNCTION(BlueprintNativeEvent)
+	EHandlingType GetHandlingType() const;
+};
+
+DECLARE_DELEGATE_OneParam(FOnWorldBoundsVolumeSpawned, AWorldBoundsVolume*);
+
+UCLASS()
+class UWorldBoundsVolumeSubsystem : public UWorldSubsystem
+{
+	GENERATED_BODY()
+
+public:
+
+	FVector GetValidWorldLocation(const FVector& OptionalPadding = FVector::ZeroVector) const;
+
+	FVector FindClosestPointToLocation(const FVector& Location, const FVector& Padding) const;
+
+	void SetWorldBoundsVolume(AWorldBoundsVolume& InWorldBoundsVolume);
+
+	FOnWorldBoundsVolumeSpawned OnWorldBoundsVolumeSpawned;
+
+private:
 
 	UPROPERTY()
-	EHandlingType HandlingType;
-
-	bool operator==(const FTrackedActor& Other) const
-	{
-		return Actor == Other.Actor && HandlingType == Other.HandlingType;
-	}
+	TObjectPtr<AWorldBoundsVolume> WorldBoundsVolume;
 };
 
 UCLASS()
-class ASTEROIDS_API AWorldBoundsVolume : public AActor
+class ASTEROIDS_API AWorldBoundsVolume : public ATriggerBox
 {
 	GENERATED_BODY()
 
@@ -33,31 +68,18 @@ public:
 
 	AWorldBoundsVolume();
 
-	static bool IsValidWorld();
-
-	static FVector GetValidWorldLocation();
-
 	virtual bool ShouldTickIfViewportsOnly() const override { return true; }
 
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
-	UPROPERTY(EditAnywhere)
-	FVector HalfExtents;
 
 private:
 
-	void HandleAsteroidEntitySpawned(AActor* SpawnedActor, const EHandlingType HandlingType);
-
 	UFUNCTION()
-	void HandleEntityDestroyed(AActor* DestroyedActor);
+	void HandleEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-	virtual void Tick(const float DeltaTime) override;
-
-	void FlipActorWorldPosition(AActor* Actor) const;
-
-	UPROPERTY()
-	TArray<FTrackedActor> TrackedActors;
+	void FlipActorWorldPosition(AActor& Actor) const;
 
 	FDelegateHandle EntitySpawnedHandle;
 };

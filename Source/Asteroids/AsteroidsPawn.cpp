@@ -9,40 +9,11 @@
 #include "EnhancedInputSubsystems.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
-#include "Utils/AsteroidEntitySpawned.h"
 
 UE_DEFINE_GAMEPLAY_TAG(FireComponentTag, "Component.Fire");
 UE_DEFINE_GAMEPLAY_TAG(SmokeComponentTag, "Component.Smoke");
 UE_DEFINE_GAMEPLAY_TAG(ExplosionComponentTag, "Component.Explosion");
 UE_DEFINE_GAMEPLAY_TAG(ShipComponentTag, "Component.Ship");
-
-AAsteroidsPawn::AAsteroidsPawn()
-{
-	// Movement
-	MoveSpeed = FVector::ZeroVector;
-
-	// Weapon
-	GunOffset = FVector(90.f, 0.f, 0.f);
-	FireRate = 0.1f;
-	bCanFire = true;
-
-	PlayerMaxHealth = 100.0f;
-	PlayerCurrentHealth = 100.0f;
-
-	PlayerMaxShields = 100.0f;
-	PlayerCurrentShields = 100.0f;
-	ShieldRegenDelay = 6.0f;
-	ShieldRegenTimer = 0.0f;
-	ShieldRegenRate = 10.0f;
-	bShieldTimerActive = false;
-	DamageTimeDelay = 1;
-	CurrentDamageTimeDelay = 0;
-	bDamageTimerActive = false;
-
-	CurrentBullets = 0;
-
-	bIsDead = false;
-}
 
 void AAsteroidsPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -85,33 +56,23 @@ void AAsteroidsPawn::PostInitializeComponents()
 	ExplosionComponent = FindComponentByTag<UParticleSystemComponent>(ExplosionComponentTag.GetTag().GetTagName());
 	SmokeComponent = FindComponentByTag<UParticleSystemComponent>(SmokeComponentTag.GetTag().GetTagName());
 	ShipMeshComponent = FindComponentByTag<UStaticMeshComponent>(ShipComponentTag.GetTag().GetTagName());
+	CapsuleComponent = FindComponentByClass<UCapsuleComponent>();
 }
 
 void AAsteroidsPawn::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UAsteroidEntitySpawnerSubsystem::OnAsteroidEntitySpawned.ExecuteIfBound(this, EHandlingType::Flip);
-
-	UCapsuleComponent* CapsuleComponent = FindComponentByClass<UCapsuleComponent>();
 	if (!ensureAlways(IsValid(CapsuleComponent)))
 	{
 		return;
 	}
 
-	CapsuleComponent->OnComponentBeginOverlap.AddDynamic(this, &AAsteroidsPawn::OnBeginOverlap);
-	CapsuleComponent->OnComponentEndOverlap.AddDynamic(this, &AAsteroidsPawn::OnEndOverlap);
+	CapsuleComponent->OnComponentHit.AddDynamic(this, &AAsteroidsPawn::OnHit);
 
 	FVector WorldLocation = GetActorLocation();
 	WorldLocation.Z = 0.0f;
 	SetActorLocation(WorldLocation);
-
-	if (!ensureAlways(IsValid(ExplosionComponent)))
-	{
-		return;
-	}
-
-	ExplosionComponent->DeactivateSystem();
 }
 
 void AAsteroidsPawn::HandleBulletDestroyed(AActor*)
@@ -124,107 +85,124 @@ void AAsteroidsPawn::DestroyPawn()
 	Destroy();
 }
 
-void AAsteroidsPawn::DealDamage(const float Damage)
+void AAsteroidsPawn::HandleShieldDamage(const float DamageAmount)
 {
-	if (!bDamageTimerActive)
+	if (PlayerCurrentShields > 0.0f)
 	{
-		if (PlayerCurrentShields > 0.0f)
-		{
-			ShieldRegenTimer = 0.0f;
-			bShieldTimerActive = true;
-			PlayerCurrentShields -= Damage;
+		ShieldRegenTimer = 0.0f;
+		bShieldTimerActive = true;
+		PlayerCurrentShields -= DamageAmount;
 
-			const float CurrentShieldPercentage = PlayerCurrentShields / PlayerMaxShields;
-			OnPlayerShieldUpdated.Broadcast(CurrentShieldPercentage);
+		const float CurrentShieldPercentage = PlayerCurrentShields / PlayerMaxShields;
+		OnPlayerShieldUpdated.Broadcast(CurrentShieldPercentage);
+	}
+}
+
+void AAsteroidsPawn::HandleDeath()
+{
+	if (!ensureAlways(IsValid(GetWorld())))
+	{
+		return;
+	}
+
+	const UAsteroidsScoreManager* ScoreManager = UAsteroidsScoreManager::GetScoreManager(*GetWorld());
+	if (!ensureAlways(IsValid(ScoreManager)))
+	{
+		return;
+	}
+
+	if (!bIsDead)
+	{
+		ScoreManager->CheckIsHighScore();
+		OnPlayerDied.Broadcast();
+	}
+
+	if (!ensureAlways(IsValid(SmokeComponent) && IsValid(FireComponent)))
+	{
+		return;
+	}
+
+	SmokeComponent->SetHiddenInGame(true);
+	FireComponent->SetHiddenInGame(true);
+
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+	if (!ensureAlways(IsValid(PlayerController)))
+	{
+		return;
+	}
+
+	DisableInput(PlayerController);
+	MoveSpeed = FVector::ZeroVector;
+
+	if (!ensureAlways(IsValid(ShipMeshComponent)))
+	{
+		return;
+	}
+
+	ShipMeshComponent->SetHiddenInGame(true);
+
+	if (!ensureAlways(IsValid(ExplosionComponent)))
+	{
+		return;
+	}
+
+	ExplosionComponent->ActivateSystem();
+
+	FTimerHandle UnusedHandle;
+	GetWorldTimerManager().SetTimer(UnusedHandle, FTimerDelegate::CreateUObject(this, &AAsteroidsPawn::DestroyPawn), 1.0f, false);
+
+	bIsDead = true;
+}
+
+void AAsteroidsPawn::HandleHealthDamage(const float DamageAmount)
+{
+	PlayerCurrentHealth -= DamageAmount;
+
+	if (PlayerCurrentHealth <= 0.0f)
+	{
+		HandleDeath();
+	}
+	else
+	{
+		ShieldRegenTimer = 0.0f;
+		bDamageTimerActive = true;
+		const float CurrentHealthPercentage = PlayerCurrentHealth / PlayerMaxHealth;
+		OnPlayerHealthUpdated.Broadcast(CurrentHealthPercentage);
+	}
+
+	if (PlayerCurrentHealth < 50.0f)
+	{
+		if (!ensureAlways(IsValid(SmokeComponent)))
+		{
 			return;
 		}
 
-		PlayerCurrentHealth -= Damage;
+		SmokeComponent->ActivateSystem();
+	}
 
-		if (PlayerCurrentHealth <= 0.0f)
+	if (PlayerCurrentHealth < 25.0f)
+	{
+       		if (!ensure(IsValid(SmokeComponent) && IsValid(FireComponent)))
 		{
-			if (!ensureAlways(IsValid(GetWorld())))
-			{
-				return;
-			}
-			const UAsteroidsScoreManager* ScoreManager = UAsteroidsScoreManager::GetScoreManager(*GetWorld());
-			if (!ensureAlways(IsValid(ScoreManager)))
-			{
-				return;
-			}
-
-			if (!bIsDead)
-			{
-				ScoreManager->CheckIsHighScore();
-				OnPlayerDied.Broadcast();
-			}
-
-			if (!ensureAlways(IsValid(SmokeComponent) && IsValid(FireComponent)))
-			{
-				return;
-			}
-
-			SmokeComponent->SetHiddenInGame(true);
-			FireComponent->SetHiddenInGame(true);
-
-			FTimerHandle UnusedHandle;
-			GetWorldTimerManager().SetTimer(UnusedHandle, 1.0f, false);
-
-			APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-			if (!ensureAlways(IsValid(PlayerController)))
-			{
-				return;
-			}
-
-			DisableInput(PlayerController);
-			MoveSpeed = FVector::ZeroVector;
-
-			if (!ensureAlways(IsValid(ShipMeshComponent)))
-			{
-				return;
-			}
-
-			ShipMeshComponent->SetHiddenInGame(true);
-
-			if (!ensureAlways(IsValid(ExplosionComponent)))
-			{
-				return;
-			}
-
-			ExplosionComponent->ActivateSystem();
-
-			GetWorldTimerManager().SetTimer(UnusedHandle, FTimerDelegate::CreateUObject(this, &AAsteroidsPawn::DestroyPawn), 1.0f, false);
-
-			bIsDead = true;
-		}
-		else
-		{
-			ShieldRegenTimer = 0.0f;
-			bShieldTimerActive = true;
-			const float CurrentHealthPercentage = PlayerCurrentHealth / PlayerMaxHealth;
-			OnPlayerHealthUpdated.Broadcast(CurrentHealthPercentage);
+			return;
 		}
 
-		if (PlayerCurrentHealth < 50.0f)
-		{
-			if (!ensureAlways(IsValid(SmokeComponent)))
-			{
-				return;
-			}
+		SmokeComponent->DeactivateSystem();
+		FireComponent->ActivateSystem();
+	}
+}
 
-			SmokeComponent->ActivateSystem();
-		}
+void AAsteroidsPawn::DealDamage(const float Damage)
+{
+	if (!bShieldTimerActive)
+	{
+		HandleShieldDamage(Damage);
+		return;
+	}
 
-		if (PlayerCurrentHealth < 25.0f)
-		{
-			if (!ensure(IsValid(SmokeComponent) && IsValid(FireComponent)))
-			{
-				return;
-			}
-
-			SmokeComponent->DeactivateSystem();
-			FireComponent->ActivateSystem();
-		}
+	if (!bDamageTimerActive)
+	{
+		HandleHealthDamage(Damage);
 	}
 }
 
@@ -280,12 +258,6 @@ void AAsteroidsPawn::Tick(const float DeltaSeconds)
 
 	// Reset inputs so they don't "stick" if HandleMovement isn't called next frame
 	LastInput = FVector2D::ZeroVector;
-
-	if (bIsOverlappingAsteroid && !bDamageTimerActive)
-	{
-		DealDamage(10);
-		bDamageTimerActive = true;
-	}
 }
 
 void AAsteroidsPawn::RegenerateShields(const float DeltaSeconds)
@@ -310,6 +282,11 @@ void AAsteroidsPawn::FireShot()
 
 void AAsteroidsPawn::Fire(const FInputActionValue&)
 {
+	if (!bCanFire)
+	{
+		return;
+	}
+
 	// If it's ok to fire again
 	if (CurrentBullets < 2)
 	{
@@ -338,8 +315,6 @@ void AAsteroidsPawn::Fire(const FInputActionValue&)
 
 		SpawnedActor->OnDestroyed.AddDynamic(this, &AAsteroidsPawn::HandleBulletDestroyed);
 
-		bCanFire = false;
-
 		World->GetTimerManager().SetTimer(TimerHandle_ShotTimerExpired, this, &AAsteroidsPawn::ShotTimerExpired, FireRate);
 
 		// try and play the sound if specified
@@ -358,32 +333,65 @@ void AAsteroidsPawn::ShotTimerExpired()
 	bCanFire = true;
 }
 
-void AAsteroidsPawn::OnBeginOverlap(UPrimitiveComponent*, AActor*, UPrimitiveComponent* OtherComp, int32, bool, const FHitResult&)
+void AAsteroidsPawn::OnHit(UPrimitiveComponent*, AActor*OtherActor, UPrimitiveComponent* OtherComp, FVector, const FHitResult& Hit)
 {
-	if (!ensureAlways(IsValid(OtherComp) && IsValid(OtherComp->GetOwner())))
+	if (bIsProcesingHit)
+	{
+		return;
+	}
+
+	bIsProcesingHit = true;
+
+	if (!ensureAlways(OtherActor))
 	{
 		return;
 	}
 
 	if (OtherComp->GetOwner()->IsA<AAsteroid>())
 	{
-		bIsOverlappingAsteroid = true;
 		DealDamage(10);
-		bDamageTimerActive = true;
-	}
-}
 
-void AAsteroidsPawn::OnEndOverlap(UPrimitiveComponent*, AActor*, UPrimitiveComponent* OtherComp, int32)
-{
-	if (!ensureAlways(IsValid(OtherComp) && IsValid(OtherComp->GetOwner())))
-	{
-		return;
+		// 1. Calculate Reflection
+		FVector ReflectedVelocity = FMath::GetReflectionVector(MoveSpeed, Hit.ImpactNormal);
+		ReflectedVelocity.Z = 0.0f;
+
+		// 2. The "Stationary" Check
+		// If MoveSpeed was 0, ReflectedVelocity will be 0. We need to override it.
+		static constexpr float MinKnockback = 400.0f; // Adjust this for "arcade" feel
+
+		if (ReflectedVelocity.SizeSquared() < FMath::Square(MinKnockback))
+		{
+			// If we aren't moving fast enough, explode away from the impact normal
+			MoveSpeed = Hit.ImpactNormal.GetSafeNormal2D() * MinKnockback;
+		}
+		else
+		{
+			// Otherwise, use the bounced velocity
+			MoveSpeed = ReflectedVelocity * 0.8f;
+		}
+
+		// 3. Position Correction (Crucial)
+		// IMPORTANT: Set bSweep to FALSE here.
+		// If true, the correction itself might be blocked by the asteroid you just hit.
+		FVector Correction = Hit.ImpactNormal;
+		Correction.Z = 0.0f;
+		AddActorWorldOffset(Correction * 5.0f, false);
+
+		// 3. The "Safety Net" Check
+		// Now we manually check if our new position is overlapping something else
+		TArray<AActor*> OverlappingActors;
+		GetOverlappingActors(OverlappingActors, AAsteroid::StaticClass());
+
+		if (OverlappingActors.Num() > 0)
+		{
+			// If we landed inside ANOTHER asteroid, handle it here.
+			// Option A: Just deal damage again.
+			// Option B: Nudge again in the new direction.
+			DealDamage(10);
+		}
 	}
 
-	if (OtherComp->GetOwner()->IsA<AAsteroid>())
-	{
-		bIsOverlappingAsteroid = false;
-	}
+	bIsProcesingHit = false;
 }
 
 void AAsteroidsPawn::HandleHealthPackPickedUp(const float HealthIncreaseAmount)

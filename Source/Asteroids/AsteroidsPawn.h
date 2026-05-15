@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "NativeGameplayTags.h"
+#include "WorldBoundsVolume.h"
 
 #include "AsteroidsPawn.generated.h"
 
+class UCapsuleComponent;
 class AAsteroidsProjectile;
 struct FInputActionValue;
 class UInputAction;
@@ -22,20 +24,19 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerShieldUpdated, const float,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDied);
 
 UCLASS(Blueprintable)
-class AAsteroidsPawn : public APawn
+class AAsteroidsPawn : public APawn, public IWorldBoundsHandlingInterface
 {
 	GENERATED_BODY()
 
 public:
-	AAsteroidsPawn();
 
 	/** Offset from the ships location to spawn projectiles */
 	UPROPERTY(Category = Gameplay, EditAnywhere)
-	FVector GunOffset;
+	FVector GunOffset = FVector(90.f, 0.f, 0.f);
 
 	/* How fast the weapon will fire */
 	UPROPERTY(Category = Gameplay, EditAnywhere)
-	float FireRate;
+	float FireRate = 0.1f;
 
 	/** Sound to play each time we fire */
 	UPROPERTY(Category = Audio, EditAnywhere, BlueprintReadWrite)
@@ -61,19 +62,22 @@ public:
 	virtual void Tick(const float DeltaSeconds) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
+	virtual UCapsuleComponent* GetCapsuleComponent_Implementation() const override { return CapsuleComponent; }
+	virtual EHandlingType GetHandlingType_Implementation() const override { return EHandlingType::Flip; }
+
 private:
 
-	bool bIsDead;
+	bool bIsDead = false;
 
-	float PlayerCurrentHealth;
-	float PlayerMaxHealth;
+	float PlayerCurrentHealth = 100.0f;
+	float PlayerMaxHealth = 100.0f;
 
-	float PlayerCurrentShields;
-	float PlayerMaxShields;
-	float ShieldRegenDelay;
-	float ShieldRegenTimer;
-	bool bShieldTimerActive;
-	float ShieldRegenRate;
+	float PlayerCurrentShields = 100.0f;
+	float PlayerMaxShields = 100.0f;
+	float ShieldRegenDelay = 6.0f;
+	float ShieldRegenTimer = 0.0f;
+	bool bShieldTimerActive = false;
+	float ShieldRegenRate = 10.0f;
 
 	UPROPERTY(EditDefaultsOnly)
 	float MaxSpeed = 1000.0f;
@@ -83,21 +87,20 @@ private:
 
 	int CurrentBullets = 0;
 
-	bool bIsOverlappingAsteroid = false;
-
-	FVector MoveSpeed = FVector(0.0f, 0.0f, 0.0f);
+	FVector MoveSpeed = FVector::ZeroVector;
 
 	FRotator Rotation = FRotator(0.0f, 0.0f, 0.0f);
 
 	/* Flag to control firing  */
-	uint32 bCanFire : 1;
+	bool bCanFire = true;
 
 	/** Handle for efficient management of ShotTimerExpired timer */
 	FTimerHandle TimerHandle_ShotTimerExpired;
 
-	bool bDamageTimerActive;
-	float DamageTimeDelay;
-	float CurrentDamageTimeDelay;
+	bool bDamageTimerActive = false;
+	bool bIsProcesingHit = false;
+	float DamageTimeDelay = 1.0f;
+	float CurrentDamageTimeDelay = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly)
 	float RotationSpeed = 100.0f;
@@ -117,9 +120,6 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
 	TSubclassOf<AAsteroidsProjectile> ProjectileClass = nullptr;
 
-	UPROPERTY(EditDefaultsOnly)
-	float SpeedFactor = 10.0f;
-
 	/* The Smoke component*/
 	UPROPERTY()
 	UParticleSystemComponent* SmokeComponent = nullptr;
@@ -135,6 +135,9 @@ private:
 	UPROPERTY()
 	UStaticMeshComponent* ShipMeshComponent = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UCapsuleComponent> CapsuleComponent = nullptr;
+
 	FVector2D LastInput = FVector2D::ZeroVector;
 
 	void DealDamage(float Damage);
@@ -144,16 +147,20 @@ private:
 	void Fire(const FInputActionValue& Value);
 
 	UFUNCTION()
-	void OnBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
-	UFUNCTION()
-	void OnEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	void HandleMovement(const FInputActionValue& Value);
+
+	void HandleShieldDamage(const float DamageAmount);
+
+	void HandleHealthDamage(const float DamageAmount);
+
+	void HandleDeath();
 
 	/* Handler for the fire timer expiry */
 	void ShotTimerExpired();
 
+	UFUNCTION()
 	void HandleBulletDestroyed(AActor* DestroyedActor);
 
 	UFUNCTION()

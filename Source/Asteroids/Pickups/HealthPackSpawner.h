@@ -11,23 +11,26 @@ class AHealthPack;
  * 
  */
 UCLASS()
-class ASTEROIDS_API UHealthPackSpawner : public UTickableWorldSubsystem
+class ASTEROIDS_API UHealthPackSpawner : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Deinitialize() override;
 
-	virtual void Tick(const float DeltaTime) override;
-	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UHealthPackSpawner, STATGROUP_Tickables); }
-
 	void SpawnHealthPack();
+
+	UFUNCTION()
+	void HandleLevelChanged(const int CurrentLevel);
 
 	UFUNCTION()
 	void HandlePickupDestroyed(AActor* Actor);
 
 	UPROPERTY()
 	TObjectPtr<AHealthPack> CurrentHealthPack;
+
+	FTimerHandle SpawnHealthPackTimerHandle;
 
 	float SpawnTimerHealth = 0.0f;
 
