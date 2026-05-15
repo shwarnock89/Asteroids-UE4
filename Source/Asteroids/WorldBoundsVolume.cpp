@@ -18,6 +18,11 @@ AWorldBoundsVolume::AWorldBoundsVolume()
 	RootComponent = DummyRoot;
 }
 
+bool AWorldBoundsVolume::IsValidWorld()
+{
+	return UGameplayStatics::GetActorOfClass(GWorld, StaticClass()) != nullptr;
+}
+
 FVector AWorldBoundsVolume::GetValidWorldLocation()
 {
 	const AWorldBoundsVolume* WorldBoundsVolume = Cast<AWorldBoundsVolume>(UGameplayStatics::GetActorOfClass(GWorld, AWorldBoundsVolume::StaticClass()));

@@ -33,6 +33,8 @@ public:
 
 	AWorldBoundsVolume();
 
+	static bool IsValidWorld();
+
 	static FVector GetValidWorldLocation();
 
 	virtual bool ShouldTickIfViewportsOnly() const override { return true; }

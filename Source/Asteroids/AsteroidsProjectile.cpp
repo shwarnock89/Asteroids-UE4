@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserve
 
 #include "AsteroidsProjectile.h"
-#include "AsteroidsGameInstance.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine.h"
 #include "Engine/StaticMesh.h"
@@ -34,9 +33,6 @@ void AAsteroidsProjectile::BeginPlay()
 
 	UAsteroidEntitySpawnerSubsystem::OnAsteroidEntitySpawned.ExecuteIfBound(this, EHandlingType::Despawn);
 
-	UAsteroidsGameInstance* GameInstance = static_cast<UAsteroidsGameInstance*>(GetWorld()->GetGameInstance());
-	Messenger = GameInstance->GetMessanger();
-
 	USphereComponent* SphereComp = FindComponentByClass<USphereComponent>();
 	if (!ensureAlways(IsValid(SphereComp)))
 	{
@@ -50,10 +46,6 @@ void AAsteroidsProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 
-	FMessage Message = FMessage();
-	Message.intMessage = 1;
-	Messenger->BulletDestroyed(Message);
-	
 	USphereComponent* SphereComp = FindComponentByClass<USphereComponent>();
 	if (!ensureAlways(IsValid(SphereComp)))
 	{

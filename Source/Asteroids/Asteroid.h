@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AsteroidManager.h"
 #include "GameFramework/Actor.h"
-#include "Utils/Messanger.h"
 
 #include "Asteroid.generated.h"
 
@@ -18,7 +18,9 @@ public:
 	// Sets default values for this actor's properties
 	AAsteroid();
 
-	void Initialize(const EStartSides::START_SIDE InStartSide, const ESizes::SIZE InSize);
+	ESizes GetSize() const { return Size; }
+
+	void Initialize(const EStartSides InStartSide, const ESizes InSize);
 
 private:
 
@@ -32,9 +34,9 @@ private:
 
 	float MoveSpeed = 0.0f;
 
-	ESizes::SIZE Size = ESizes::SIZE::None;
+	ESizes Size = ESizes::None;
 
-	EStartSides::START_SIDE StartSide = EStartSides::START_SIDE::None;
+	EStartSides StartSide = EStartSides::None;
 
 	FVector MoveDirection = FVector::ZeroVector;
 

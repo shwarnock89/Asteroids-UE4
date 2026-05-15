@@ -2,15 +2,14 @@
 #include "AsteroidsPawn.h"
 
 #include "Asteroid.h"
-#include "AsteroidsGameInstance.h"
 #include "AsteroidsProjectile.h"
+#include "AsteroidsScoreManager.h"
 #include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Utils/AsteroidEntitySpawned.h"
-#include "Utils/HighScoreCalculator.h"
 
 UE_DEFINE_GAMEPLAY_TAG(FireComponentTag, "Component.Fire");
 UE_DEFINE_GAMEPLAY_TAG(SmokeComponentTag, "Component.Smoke");
@@ -41,8 +40,6 @@ AAsteroidsPawn::AAsteroidsPawn()
 	bDamageTimerActive = false;
 
 	CurrentBullets = 0;
-
-	PlayerScore = 0;
 
 	bIsDead = false;
 }
@@ -109,13 +106,6 @@ void AAsteroidsPawn::BeginPlay()
 	WorldLocation.Z = 0.0f;
 	SetActorLocation(WorldLocation);
 
-	const UAsteroidsGameInstance* GameInstance = static_cast<UAsteroidsGameInstance*>(GetWorld()->GetGameInstance());
-	Messenger = GameInstance->GetMessanger();
-	Messenger->OnFireButtonPressed.AddDynamic(this, &AAsteroidsPawn::FireShot);
-	Messenger->OnBulletDestroyed.AddDynamic(this, &AAsteroidsPawn::HandleBulletDestroyed);
-	Messenger->OnUpdatePlayerScore.AddDynamic(this, &AAsteroidsPawn::HandleUpdatePlayerScore);
-	Messenger->OnHealthPackPickedUp.AddDynamic(this, &AAsteroidsPawn::HandleHealthPackPickedUp);
-
 	if (!ensureAlways(IsValid(ExplosionComponent)))
 	{
 		return;
@@ -124,9 +114,9 @@ void AAsteroidsPawn::BeginPlay()
 	ExplosionComponent->DeactivateSystem();
 }
 
-void AAsteroidsPawn::HandleBulletDestroyed(const FMessage Message)
+void AAsteroidsPawn::HandleBulletDestroyed(AActor*)
 {
-	CurrentBullets -= Message.intMessage;
+	--CurrentBullets;
 }
 
 void AAsteroidsPawn::DestroyPawn()
@@ -143,10 +133,9 @@ void AAsteroidsPawn::DealDamage(const float Damage)
 			ShieldRegenTimer = 0.0f;
 			bShieldTimerActive = true;
 			PlayerCurrentShields -= Damage;
-			FMessage Message;
-			Message.floatMessage = PlayerCurrentShields / PlayerMaxShields;
-			Message.typeMessage = EMessageTypes::Float;
-			Messenger->ShieldsUpdated(Message);
+
+			const float CurrentShieldPercentage = PlayerCurrentShields / PlayerMaxShields;
+			OnPlayerShieldUpdated.Broadcast(CurrentShieldPercentage);
 			return;
 		}
 
@@ -154,17 +143,20 @@ void AAsteroidsPawn::DealDamage(const float Damage)
 
 		if (PlayerCurrentHealth <= 0.0f)
 		{
-			if (UHighScoreCalculator::IsNewHighScore(PlayerScore) && !bIsDead)
+			if (!ensureAlways(IsValid(GetWorld())))
 			{
-				FMessage Message;
-				Message.intMessage = PlayerScore;
-				Messenger->NewHighScore(Message);
+				return;
 			}
-			else if (!bIsDead)
+			const UAsteroidsScoreManager* ScoreManager = UAsteroidsScoreManager::GetScoreManager(*GetWorld());
+			if (!ensureAlways(IsValid(ScoreManager)))
 			{
-				FMessage Message = FMessage();
-				Message.intMessage = PlayerScore;
-				Messenger->PlayerDied(Message);
+				return;
+			}
+
+			if (!bIsDead)
+			{
+				ScoreManager->CheckIsHighScore();
+				OnPlayerDied.Broadcast();
 			}
 
 			if (!ensureAlways(IsValid(SmokeComponent) && IsValid(FireComponent)))
@@ -209,9 +201,8 @@ void AAsteroidsPawn::DealDamage(const float Damage)
 		{
 			ShieldRegenTimer = 0.0f;
 			bShieldTimerActive = true;
-			FMessage Message = FMessage();
-			Message.floatMessage = PlayerCurrentHealth / PlayerMaxHealth;
-			Messenger->UpdatePlayerHealth(Message);
+			const float CurrentHealthPercentage = PlayerCurrentHealth / PlayerMaxHealth;
+			OnPlayerHealthUpdated.Broadcast(CurrentHealthPercentage);
 		}
 
 		if (PlayerCurrentHealth < 50.0f)
@@ -235,14 +226,6 @@ void AAsteroidsPawn::DealDamage(const float Damage)
 			FireComponent->ActivateSystem();
 		}
 	}
-}
-
-void AAsteroidsPawn::HandleUpdatePlayerScore(FMessage Message)
-{
-	PlayerScore += Message.intMessage;
-
-	Message.intMessage = PlayerScore;
-	Messenger->PlayerScoreWasUpdated(Message);
 }
 
 void AAsteroidsPawn::Tick(const float DeltaSeconds)
@@ -314,10 +297,9 @@ void AAsteroidsPawn::RegenerateShields(const float DeltaSeconds)
 		{
 			PlayerCurrentShields = 100.0f;
 		}
-		FMessage Message;
-		Message.floatMessage = PlayerCurrentShields / PlayerMaxShields;
-		Message.typeMessage = EMessageTypes::Float;
-		Messenger->ShieldsUpdated(Message);
+
+		const float CurrentShieldPercentage = PlayerCurrentShields / PlayerMaxShields;
+		OnPlayerShieldUpdated.Broadcast(CurrentShieldPercentage);
 	}
 }
 
@@ -348,7 +330,13 @@ void AAsteroidsPawn::Fire(const FInputActionValue&)
 			return;
 		}
 
-		World->SpawnActor(ProjectileClass, &SpawnLocation, &FireRotation);
+		AActor* SpawnedActor = World->SpawnActor(ProjectileClass, &SpawnLocation, &FireRotation);
+		if (!ensureAlways(IsValid(SpawnedActor)))
+		{
+			return;
+		}
+
+		SpawnedActor->OnDestroyed.AddDynamic(this, &AAsteroidsPawn::HandleBulletDestroyed);
 
 		bCanFire = false;
 
@@ -398,18 +386,17 @@ void AAsteroidsPawn::OnEndOverlap(UPrimitiveComponent*, AActor*, UPrimitiveCompo
 	}
 }
 
-void AAsteroidsPawn::HandleHealthPackPickedUp(const FMessage Message)
+void AAsteroidsPawn::HandleHealthPackPickedUp(const float HealthIncreaseAmount)
 {
-	PlayerCurrentHealth += Message.floatMessage;
+	PlayerCurrentHealth += HealthIncreaseAmount;
 
 	if (PlayerCurrentHealth > 100)
 	{
 		PlayerCurrentHealth = 100;
 	}
 
-	FMessage NewHealthMessage = FMessage();
-	NewHealthMessage.floatMessage = PlayerCurrentHealth / PlayerMaxHealth;
-	Messenger->UpdatePlayerHealth(NewHealthMessage);
+	const float PlayerHealthPercentage = PlayerCurrentHealth / PlayerMaxHealth;
+	OnPlayerHealthUpdated.Broadcast(PlayerHealthPercentage);
 
 	if (PlayerCurrentHealth <= 25.0f)
 	{
@@ -430,7 +417,5 @@ void AAsteroidsPawn::HandleHealthPackPickedUp(const FMessage Message)
 
 		SmokeComponent->DeactivateSystem();
 	}
-
-	
 }
 

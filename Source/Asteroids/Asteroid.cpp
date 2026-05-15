@@ -55,7 +55,7 @@ void AAsteroid::Tick(const float DeltaTime)
 	SetActorRotation(Rotation);
 }
 
-void AAsteroid::Initialize(const EStartSides::START_SIDE InStartSide, const ESizes::SIZE InSize)
+void AAsteroid::Initialize(const EStartSides InStartSide, const ESizes InSize)
 {
 	MoveSpeed = FMath::RandRange(5, 10);
 	StartSide = InStartSide;
@@ -121,12 +121,6 @@ void AAsteroid::OnBeginOverlap(UPrimitiveComponent*, AActor*, UPrimitiveComponen
 
 	if (OtherComp->GetOwner()->IsA<AAsteroidsProjectile>())
 	{
-		FMessage message = FMessage();
-		message.intMessage = 1;
-		message.asteroidSizeMessage = Size;
-		message.currentPosMessage = GetActorLocation();
-		UAsteroidsGameInstance* gameInstance = (UAsteroidsGameInstance*)GetWorld()->GetGameInstance();
-		gameInstance->GetMessanger()->AsteroidDestroyed(message);
 		Destroy();
 	}
 }
