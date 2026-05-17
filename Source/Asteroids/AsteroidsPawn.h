@@ -41,6 +41,7 @@ public:
 	// Begin Actor Interface
 	virtual void BeginPlay() override;
 	virtual void PostInitializeComponents() override;
+	virtual void PossessedBy(AController* NewController) override;
 	virtual void Tick(const float DeltaSeconds) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
@@ -126,38 +127,44 @@ private:
 	float CurrentDamageTimeDelay = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	UInputMappingContext* DefaultMappingContext = nullptr;
+	TObjectPtr<UInputMappingContext> DefaultMappingContext = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	UInputAction* MoveAction = nullptr;
+	TObjectPtr<UInputAction> MoveAction = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	UInputAction* FireAction = nullptr;
+	TObjectPtr<UInputAction> FireAction = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
 	TSubclassOf<AAsteroidsProjectile> ProjectileClass = nullptr;
 
 	/* The Smoke component*/
 	UPROPERTY()
-	UParticleSystemComponent* SmokeComponent = nullptr;
+	TObjectPtr<UParticleSystemComponent> SmokeComponent = nullptr;
 
 	/* The Fire Component */
 	UPROPERTY()
-	UParticleSystemComponent* FireComponent = nullptr;
+	TObjectPtr<UParticleSystemComponent> FireComponent = nullptr;
 
 	/* The Explosion Component */
 	UPROPERTY()
-	UParticleSystemComponent* ExplosionComponent = nullptr;
+	TObjectPtr<UParticleSystemComponent> ExplosionComponent = nullptr;
 
 	UPROPERTY()
-	UStaticMeshComponent* ShipMeshComponent = nullptr;
+	TObjectPtr<UStaticMeshComponent> ShipMeshComponent = nullptr;
 	// Our master space velocity that the server controls and replicates to everyone
 
 	UPROPERTY()
-	UCapsuleComponent* CapsuleComponent = nullptr;
+	TObjectPtr<UCapsuleComponent> CapsuleComponent = nullptr;
 
 	UPROPERTY(EditDefaultsOnly)
-	UAsteroidsMovementComponent* MovementComponent = nullptr;
+	TObjectPtr<UAsteroidsMovementComponent> MovementComponent = nullptr;
+
+	UPROPERTY(ReplicatedUsing = OnRep_PlayerColor)
+	FLinearColor PlayerColor = FLinearColor();
+
+	UFUNCTION()
+	void OnRep_PlayerColor() const;
 
 	UFUNCTION(Server, Reliable)
 	void Server_DealDamage(float Damage);
@@ -193,5 +200,7 @@ private:
 	void DestroyPawn();
 
 	UFUNCTION(Server, Unreliable)
-	void Server_SetInput(FVector2D Input);
+	void Server_SetInput(const FVector2D& Input);
+
+	void SetPlayerColor() const;
 };

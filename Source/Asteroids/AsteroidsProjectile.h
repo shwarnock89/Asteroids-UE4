@@ -28,7 +28,7 @@ class AAsteroidsProjectile : public AActor, public IWorldBoundsHandlingInterface
 	void DestroyProjectile();
 
 	UPROPERTY()
-	UCapsuleComponent* CapsuleComponent = nullptr;
+	TObjectPtr<UCapsuleComponent> CapsuleComponent = nullptr;
 
 	bool bIsPendingDestroy = false;
 };
