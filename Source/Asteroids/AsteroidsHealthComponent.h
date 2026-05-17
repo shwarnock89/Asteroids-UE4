@@ -1,0 +1,97 @@
+﻿// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
+
+#include "AsteroidsHealthComponent.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerHealthUpdated, const float, PlayerHealthPercentage);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerShieldUpdated, const float, PlayerCurrentShields);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDied);
+
+UCLASS()
+class UAsteroidsHealthComponent : public UActorComponent
+{
+	GENERATED_BODY()
+
+public:
+
+	UAsteroidsHealthComponent(const FObjectInitializer& InitializerModule);
+
+	void HandleHealthPackPickedUp(const float HealthIncreaseAmount);
+
+	virtual void BeginPlay() override;
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	UPROPERTY(BlueprintAssignable, Category = "Health")
+	FOnPlayerHealthUpdated OnPlayerHealthUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Health")
+	FOnPlayerShieldUpdated OnPlayerShieldUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Health")
+	FOnPlayerDied OnPlayerDied;
+
+private:
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health")
+	float PlayerMaxHealth = 100.0f;
+
+	UPROPERTY(Replicated)
+	bool bIsDead = false;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Health)
+	float PlayerCurrentHealth = 100.0f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Shields)
+	float PlayerCurrentShields = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health")
+	float PlayerMaxShields = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health")
+	float ShieldRegenDelay = 6.0f;
+
+	UPROPERTY(Replicated)
+	float ShieldRegenTimer = 0.0f;
+
+	UPROPERTY(Replicated)
+	bool bShieldTimerActive = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health")
+	float ShieldRegenRate = 10.0f;
+
+	UPROPERTY(Replicated)
+	bool bDamageTimerActive = false;
+
+	UPROPERTY(Replicated)
+	bool bIsProcessingHit = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health")
+	float DamageTimeDelay = 1.0f;
+
+	UPROPERTY(Replicated)
+	float CurrentDamageTimeDelay = 0.0f;
+
+	UFUNCTION()
+	void OnRep_Health() const;
+
+	UFUNCTION()
+	void OnRep_Shields() const;
+
+	UFUNCTION(Server, Reliable)
+	void Server_DealDamage(float Damage);
+
+	UFUNCTION(Server, Reliable)
+	void Server_RegenerateShields(const float DeltaSeconds);
+
+	UFUNCTION()
+	void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
+	void HandleShieldDamage(const float DamageAmount);
+	void HandleHealthDamage(const float DamageAmount);
+	void HandleDeath();
+};
