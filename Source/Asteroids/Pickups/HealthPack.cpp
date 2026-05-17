@@ -2,6 +2,7 @@
 
 #include "HealthPack.h"
 
+#include "Asteroids/AsteroidsHealthComponent.h"
 #include "Asteroids/AsteroidsPawn.h"
 #include "Components/CapsuleComponent.h"
 
@@ -48,6 +49,12 @@ void AHealthPack::OnBeginOverlap(UPrimitiveComponent*, AActor*, UPrimitiveCompon
 		return;
 	}
 
-	AsteroidsPawn->HandleHealthPackPickedUp(HealthIncrease);
+	UAsteroidsHealthComponent* HealthComponent = AsteroidsPawn->GetHealthComponent();
+	if (!ensureAlways(IsValid(HealthComponent)))
+	{
+		return;
+	}
+
+	HealthComponent->HandleHealthPackPickedUp(HealthIncrease);
 	Destroy();
 }
