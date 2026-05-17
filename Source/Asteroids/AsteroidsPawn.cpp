@@ -2,18 +2,34 @@
 #include "AsteroidsPawn.h"
 
 #include "Asteroid.h"
+#include "AsteroidsMovementComponent.h"
 #include "AsteroidsProjectile.h"
 #include "AsteroidsScoreManager.h"
 #include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 #include "Particles/ParticleSystemComponent.h"
 
 UE_DEFINE_GAMEPLAY_TAG(FireComponentTag, "Component.Fire");
 UE_DEFINE_GAMEPLAY_TAG(SmokeComponentTag, "Component.Smoke");
 UE_DEFINE_GAMEPLAY_TAG(ExplosionComponentTag, "Component.Explosion");
 UE_DEFINE_GAMEPLAY_TAG(ShipComponentTag, "Component.Ship");
+
+AAsteroidsPawn::AAsteroidsPawn(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	PrimaryActorTick.bCanEverTick = true;
+
+	bReplicates = true;
+
+	NetDormancy = DORM_Never;
+	SetNetUpdateFrequency(60.0f);
+	SetMinNetUpdateFrequency(30.0f);
+
+	MovementComponent = CreateDefaultSubobject<UAsteroidsMovementComponent>(TEXT("AsteroidsMovementComponent"));
+}
 
 void AAsteroidsPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -45,7 +61,16 @@ void AAsteroidsPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 
 void AAsteroidsPawn::HandleMovement(const FInputActionValue& Value)
 {
-	LastInput = Value.Get<FVector2D>();
+	const FVector2D Input = Value.Get<FVector2D>();
+
+	MovementComponent->SetInputVector(Input);
+
+	Server_SetInput(Input);
+}
+
+void AAsteroidsPawn::Server_SetInput_Implementation(FVector2D Input)
+{
+	MovementComponent->SetInputVector(Input);
 }
 
 void AAsteroidsPawn::PostInitializeComponents()
@@ -68,6 +93,11 @@ void AAsteroidsPawn::BeginPlay()
 		return;
 	}
 
+	if (HasAuthority())
+	{
+		SetReplicateMovement(false);
+	}
+
 	CapsuleComponent->OnComponentHit.AddDynamic(this, &AAsteroidsPawn::OnHit);
 
 	FVector WorldLocation = GetActorLocation();
@@ -85,7 +115,7 @@ void AAsteroidsPawn::DestroyPawn()
 	Destroy();
 }
 
-void AAsteroidsPawn::HandleShieldDamage(const float DamageAmount)
+void AAsteroidsPawn::Server_HandleShieldDamage_Implementation(const float DamageAmount)
 {
 	if (PlayerCurrentShields > 0.0f)
 	{
@@ -98,7 +128,7 @@ void AAsteroidsPawn::HandleShieldDamage(const float DamageAmount)
 	}
 }
 
-void AAsteroidsPawn::HandleDeath()
+void AAsteroidsPawn::Server_HandleDeath_Implementation()
 {
 	if (!ensureAlways(IsValid(GetWorld())))
 	{
@@ -132,7 +162,6 @@ void AAsteroidsPawn::HandleDeath()
 	}
 
 	DisableInput(PlayerController);
-	MoveSpeed = FVector::ZeroVector;
 
 	if (!ensureAlways(IsValid(ShipMeshComponent)))
 	{
@@ -154,13 +183,13 @@ void AAsteroidsPawn::HandleDeath()
 	bIsDead = true;
 }
 
-void AAsteroidsPawn::HandleHealthDamage(const float DamageAmount)
+void AAsteroidsPawn::Server_HandleHealthDamage_Implementation(const float DamageAmount)
 {
 	PlayerCurrentHealth -= DamageAmount;
 
 	if (PlayerCurrentHealth <= 0.0f)
 	{
-		HandleDeath();
+		Server_HandleDeath();
 	}
 	else
 	{
@@ -182,7 +211,7 @@ void AAsteroidsPawn::HandleHealthDamage(const float DamageAmount)
 
 	if (PlayerCurrentHealth < 25.0f)
 	{
-       		if (!ensure(IsValid(SmokeComponent) && IsValid(FireComponent)))
+		if (!ensure(IsValid(SmokeComponent) && IsValid(FireComponent)))
 		{
 			return;
 		}
@@ -192,75 +221,69 @@ void AAsteroidsPawn::HandleHealthDamage(const float DamageAmount)
 	}
 }
 
-void AAsteroidsPawn::DealDamage(const float Damage)
+void AAsteroidsPawn::Server_DealDamage_Implementation(const float Damage)
 {
 	if (!bShieldTimerActive)
 	{
-		HandleShieldDamage(Damage);
+		Server_HandleShieldDamage(Damage);
 		return;
 	}
 
 	if (!bDamageTimerActive)
 	{
-		HandleHealthDamage(Damage);
+		Server_HandleHealthDamage(Damage);
 	}
 }
 
 void AAsteroidsPawn::Tick(const float DeltaSeconds)
 {
-	if (bDamageTimerActive)
+	if (HasAuthority())
 	{
-		CurrentDamageTimeDelay += DeltaSeconds;
-	}
+		if (bDamageTimerActive)
+		{
+			CurrentDamageTimeDelay += DeltaSeconds;
+		}
 
-	if (CurrentDamageTimeDelay >= DamageTimeDelay)
-	{
-		bDamageTimerActive = false;
-		CurrentDamageTimeDelay = 0;
-	}
+		if (CurrentDamageTimeDelay >= DamageTimeDelay)
+		{
+			bDamageTimerActive = false;
+			CurrentDamageTimeDelay = 0;
+		}
 
-	if (bShieldTimerActive)
-	{
-		ShieldRegenTimer += DeltaSeconds;
-	}
-	else
-	{
-		RegenerateShields(DeltaSeconds);
-	}
+		if (bShieldTimerActive)
+		{
+			ShieldRegenTimer += DeltaSeconds;
+		}
+		else
+		{
+			Server_RegenerateShields(DeltaSeconds);
+		}
 
-	if (ShieldRegenTimer >= ShieldRegenDelay)
-	{
-		ShieldRegenTimer = 0.0f;
-		bShieldTimerActive = false;
+		if (ShieldRegenTimer >= ShieldRegenDelay)
+		{
+			ShieldRegenTimer = 0.0f;
+			bShieldTimerActive = false;
+		}
 	}
+	const ENetMode NetMode = GetNetMode();
+	const FString NetModeStr =
+		(NetMode == NM_Client) ? TEXT("CLIENT") :
+		(NetMode == NM_ListenServer) ? TEXT("LISTEN_SERVER") :
+		(NetMode == NM_DedicatedServer) ? TEXT("DEDICATED_SERVER") :
+		TEXT("STANDALONE");
 
-	// 1. Apply Rotation
-	if (!FMath::IsNearlyZero(LastInput.X))
-	{
-		AddActorLocalRotation(FRotator(0.f, LastInput.X * RotationSpeed * DeltaSeconds, 0.f));
-	}
+	const FString RoleStr =
+		IsLocallyControlled() ? TEXT("LOCAL_CONTROLLED") : TEXT("SIM_PROXY");
 
-	// 2. Apply Thrust to Velocity
-	if (!FMath::IsNearlyZero(LastInput.Y))
-	{
-		const FVector Forward = GetActorForwardVector();
-		MoveSpeed += Forward * ThrustStrength * LastInput.Y * DeltaSeconds;
-	}
-
-	// 3. Apply persistent Movement (The Drift)
-	if (!MoveSpeed.IsNearlyZero())
-	{
-		AddActorWorldOffset(MoveSpeed * DeltaSeconds, true);
-
-		// 4. Apply a tiny bit of Space Drag
-		MoveSpeed -= MoveSpeed * 0.1f * DeltaSeconds;
-	}
-
-	// Reset inputs so they don't "stick" if HandleMovement isn't called next frame
-	LastInput = FVector2D::ZeroVector;
+	
+	UE_LOG(LogTemp, Warning, TEXT("[%s | %s] Actor=%s Loc=%s"),
+		*NetModeStr,
+		*RoleStr,
+		*GetName(),
+		*GetReplicatedMovement().Location.ToString());
 }
 
-void AAsteroidsPawn::RegenerateShields(const float DeltaSeconds)
+void AAsteroidsPawn::Server_RegenerateShields_Implementation(const float DeltaSeconds)
 {
 	if (PlayerCurrentShields < PlayerMaxShields)
 	{
@@ -277,10 +300,10 @@ void AAsteroidsPawn::RegenerateShields(const float DeltaSeconds)
 
 void AAsteroidsPawn::FireShot()
 {
-	Fire(FInputActionValue());
+	Server_Fire(FInputActionValue());
 }
 
-void AAsteroidsPawn::Fire(const FInputActionValue&)
+void AAsteroidsPawn::Server_Fire_Implementation(const FInputActionValue&)
 {
 	if (!bCanFire)
 	{
@@ -315,7 +338,7 @@ void AAsteroidsPawn::Fire(const FInputActionValue&)
 
 		SpawnedActor->OnDestroyed.AddDynamic(this, &AAsteroidsPawn::HandleBulletDestroyed);
 
-		World->GetTimerManager().SetTimer(TimerHandle_ShotTimerExpired, this, &AAsteroidsPawn::ShotTimerExpired, FireRate);
+		World->GetTimerManager().SetTimer(TimerHandle_ShotTimerExpired, this, &AAsteroidsPawn::Server_ShotTimerExpired, FireRate);
 
 		// try and play the sound if specified
 		if (FireSound != nullptr)
@@ -328,70 +351,36 @@ void AAsteroidsPawn::Fire(const FInputActionValue&)
 	}
 }
 
-void AAsteroidsPawn::ShotTimerExpired()
+void AAsteroidsPawn::Server_ShotTimerExpired_Implementation()
 {
 	bCanFire = true;
 }
 
-void AAsteroidsPawn::OnHit(UPrimitiveComponent*, AActor*OtherActor, UPrimitiveComponent* OtherComp, FVector, const FHitResult& Hit)
+void AAsteroidsPawn::OnHit(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent*, FVector, const FHitResult& Hit)
 {
-	if (bIsProcesingHit)
+	if (!HasAuthority())
 	{
 		return;
 	}
 
-	bIsProcesingHit = true;
+	if (bIsProcessingHit)
+	{
+		return;
+	}
+
+	bIsProcessingHit = true;
 
 	if (!ensureAlways(OtherActor))
 	{
 		return;
 	}
 
-	if (OtherComp->GetOwner()->IsA<AAsteroid>())
+	if (OtherActor->IsA<AAsteroid>())
 	{
-		DealDamage(10);
-
-		// 1. Calculate Reflection
-		FVector ReflectedVelocity = FMath::GetReflectionVector(MoveSpeed, Hit.ImpactNormal);
-		ReflectedVelocity.Z = 0.0f;
-
-		// 2. The "Stationary" Check
-		// If MoveSpeed was 0, ReflectedVelocity will be 0. We need to override it.
-		static constexpr float MinKnockback = 400.0f; // Adjust this for "arcade" feel
-
-		if (ReflectedVelocity.SizeSquared() < FMath::Square(MinKnockback))
-		{
-			// If we aren't moving fast enough, explode away from the impact normal
-			MoveSpeed = Hit.ImpactNormal.GetSafeNormal2D() * MinKnockback;
-		}
-		else
-		{
-			// Otherwise, use the bounced velocity
-			MoveSpeed = ReflectedVelocity * 0.8f;
-		}
-
-		// 3. Position Correction (Crucial)
-		// IMPORTANT: Set bSweep to FALSE here.
-		// If true, the correction itself might be blocked by the asteroid you just hit.
-		FVector Correction = Hit.ImpactNormal;
-		Correction.Z = 0.0f;
-		AddActorWorldOffset(Correction * 5.0f, false);
-
-		// 3. The "Safety Net" Check
-		// Now we manually check if our new position is overlapping something else
-		TArray<AActor*> OverlappingActors;
-		GetOverlappingActors(OverlappingActors, AAsteroid::StaticClass());
-
-		if (OverlappingActors.Num() > 0)
-		{
-			// If we landed inside ANOTHER asteroid, handle it here.
-			// Option A: Just deal damage again.
-			// Option B: Nudge again in the new direction.
-			DealDamage(10);
-		}
+		Server_DealDamage(10);
 	}
 
-	bIsProcesingHit = false;
+	bIsProcessingHit = false;
 }
 
 void AAsteroidsPawn::HandleHealthPackPickedUp(const float HealthIncreaseAmount)
@@ -427,3 +416,19 @@ void AAsteroidsPawn::HandleHealthPackPickedUp(const float HealthIncreaseAmount)
 	}
 }
 
+void AAsteroidsPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AAsteroidsPawn, bIsDead);
+	DOREPLIFETIME(AAsteroidsPawn, PlayerCurrentHealth);
+	DOREPLIFETIME(AAsteroidsPawn, PlayerCurrentShields);
+	DOREPLIFETIME(AAsteroidsPawn, ShieldRegenTimer);
+	DOREPLIFETIME(AAsteroidsPawn, bShieldTimerActive);
+	DOREPLIFETIME(AAsteroidsPawn, CurrentBullets);
+	DOREPLIFETIME(AAsteroidsPawn, bCanFire);
+	DOREPLIFETIME(AAsteroidsPawn, TimerHandle_ShotTimerExpired);
+	DOREPLIFETIME(AAsteroidsPawn, bDamageTimerActive);
+	DOREPLIFETIME(AAsteroidsPawn, bIsProcessingHit);
+	DOREPLIFETIME(AAsteroidsPawn, CurrentDamageTimeDelay);
+}

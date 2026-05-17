@@ -16,7 +16,9 @@ public class Asteroids : ModuleRules
 			"Engine", 
 			"EnhancedInput",
 			"GameplayTags",
-			"InputCore"
+			"InputCore",
+			"OnlineSubsystem",
+			"OnlineSubsystemUtils"
 		});
     }
 }

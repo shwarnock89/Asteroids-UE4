@@ -20,6 +20,8 @@ public:
 
 	static UAsteroidsScoreManager* GetScoreManager(const UWorld& World);
 
+	virtual void RegisterServerWorld(UWorld& InServerWorld);
+
 	UFUNCTION(BlueprintPure)
 	int GetPlayerScore() const { return PlayerScore; }
 
@@ -27,6 +29,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	static void SetNewHighScores(const FHighScore& NewHighScore);
+
+	// A helper function you can call anywhere in C++ or BP to check authority
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Networking", meta = (WorldContext = "WorldContextObject"))
+	bool IsServerAuthority(UObject* WorldContextObject) const;
 
 	UFUNCTION(BlueprintPure)
 	bool IsNewHighScore() const;
@@ -41,6 +47,12 @@ public:
 
 private:
 
+	// Tracks the pointer of the active server world
+	UPROPERTY()
+	TWeakObjectPtr<UWorld> AuthoritativeServerWorld = nullptr;
+
 	int PlayerScore = 0;
 	static constexpr int Max_High_Scores = 5;
+
+	bool bIsServerAuthoritative = false;
 };

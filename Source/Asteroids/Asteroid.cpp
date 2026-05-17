@@ -4,11 +4,25 @@
 
 #include "AsteroidsProjectile.h"
 #include "Components/CapsuleComponent.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 
 // Sets default values
 AAsteroid::AAsteroid()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	bReplicates = true;
+
+	// 2. High-performance network frequencies
+	bAlwaysRelevant = true;
+
+	// 3. Initialize the Projectile Movement Component
+	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
+
+	// Configure the component for a frictionless, zero-gravity arcade environment
+	ProjectileMovement->UpdatedComponent = RootComponent;
+	ProjectileMovement->bRotationFollowsVelocity = false;
+	ProjectileMovement->bShouldBounce = false;
+	ProjectileMovement->ProjectileGravityScale = 0.f; // 2D Arcade physics
 }
 
 void AAsteroid::PostInitializeComponents()
@@ -21,6 +35,11 @@ void AAsteroid::PostInitializeComponents()
 void AAsteroid::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (HasAuthority())
+	{
+		SetReplicateMovement(true);
+	}
 
 	if (!ensureAlways(IsValid(CapsuleComponent)))
 	{
@@ -47,20 +66,27 @@ void AAsteroid::Tick(const float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	const FVector CurrentLocation = GetActorLocation();
-	const FVector Movement = MoveDirection * MoveSpeed + CurrentLocation;
-	SetActorLocation(Movement, true);
-
-	const FVector RotationDelta = RotationSpeed * DeltaTime;
-	Rotation.Add(RotationDelta.X, RotationDelta.Y, 0);
-	SetActorRotation(Rotation);
+	if (HasAuthority())
+	{
+		const FVector RotationDelta = RotationSpeed * DeltaTime;
+		Rotation.Add(RotationDelta.X, RotationDelta.Y, 0);
+		SetActorRotation(Rotation);
+	}
 }
 
-void AAsteroid::Initialize(const EStartSides InStartSide, const ESizes InSize)
+bool AAsteroid::Initialize_Validate(const EStartSides InStartSide, const ESizes InSize)
 {
-	MoveSpeed = FMath::RandRange(5, 10);
+	return InSize != ESizes::None;
+}
+
+void AAsteroid::Initialize_Implementation(const EStartSides InStartSide, const ESizes InSize)
+{
+	ProjectileMovement->InitialSpeed = FMath::RandRange(500, 1000);
+	ProjectileMovement->MaxSpeed = ProjectileMovement->InitialSpeed;
 	StartSide = InStartSide;
 	Size = InSize;
+
+	FVector MoveDirection = FVector::ZeroVector;
 
 	float Scale = 0.0f;
 	switch (Size)
@@ -103,6 +129,8 @@ void AAsteroid::Initialize(const EStartSides InStartSide, const ESizes InSize)
 		default: ;
 	}
 
+	ProjectileMovement->Velocity = MoveDirection * ProjectileMovement->MaxSpeed;
+
 	const float Speed = FMath::RandRange(20, 120);
 	RotationSpeed = FVector(Speed, 0, Speed);
 	Rotation = FRotator(FMath::RandRange(0, 360), FMath::RandRange(0, 360), FMath::RandRange(0, 360));
@@ -110,6 +138,11 @@ void AAsteroid::Initialize(const EStartSides InStartSide, const ESizes InSize)
 
 void AAsteroid::OnHit(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector, const FHitResult&)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (bIsPendingDestroy)
 	{
 		return;

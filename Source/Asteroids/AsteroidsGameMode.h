@@ -14,6 +14,8 @@ class AAsteroidsGameMode : public AGameModeBase
 
 public:
 	AAsteroidsGameMode();
+
+	virtual void BeginPlay() override;
 };
 
 

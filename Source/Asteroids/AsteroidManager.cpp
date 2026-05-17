@@ -37,7 +37,7 @@ void UAsteroidManager::HandleAsteroidDestroyed(AActor* DestroyedActor)
 			bShouldSpawnNewAsteroids = false;
 			break;
 		default:
-			checkNoEntry();
+			break;
 	}
 
 	--CurrentAsteroidCount;
@@ -93,6 +93,11 @@ bool UAsteroidManager::ShouldCreateSubsystem(UObject* Outer) const
 {
 	const UWorld* World = Cast<UWorld>(Outer);
 	if (!ensureAlways(IsValid(World)))
+	{
+		return false;
+	}
+
+	if (World->GetNetMode() == NM_Client)
 	{
 		return false;
 	}

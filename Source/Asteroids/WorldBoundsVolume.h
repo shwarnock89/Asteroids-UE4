@@ -17,6 +17,8 @@ enum class EHandlingType : uint8
 	Flip
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTeleport);
+
 UINTERFACE()
 class UWorldBoundsHandlingInterface : public UInterface
 {
@@ -30,10 +32,20 @@ class IWorldBoundsHandlingInterface
 public:
 
 	UFUNCTION(BlueprintNativeEvent)
+	void FireOnTeleportEvent() const;
+	void FireOnTeleportEvent_Implementation() const { OnTeleport.Broadcast(); }
+
+	FOnTeleport& GetOnTeleport() { return OnTeleport; }
+
+	UFUNCTION(BlueprintNativeEvent)
 	UCapsuleComponent* GetCapsuleComponent() const;
 
 	UFUNCTION(BlueprintNativeEvent)
 	EHandlingType GetHandlingType() const;
+
+private:
+
+	FOnTeleport OnTeleport;
 };
 
 DECLARE_DELEGATE_OneParam(FOnWorldBoundsVolumeSpawned, AWorldBoundsVolume*);
