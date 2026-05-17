@@ -68,7 +68,7 @@ void AAsteroidsPawn::HandleMovement(const FInputActionValue& Value)
 	Server_SetInput(Input);
 }
 
-void AAsteroidsPawn::Server_SetInput_Implementation(FVector2D Input)
+void AAsteroidsPawn::Server_SetInput_Implementation(const FVector2D& Input)
 {
 	MovementComponent->SetInputVector(Input);
 }
@@ -82,6 +82,27 @@ void AAsteroidsPawn::PostInitializeComponents()
 	SmokeComponent = FindComponentByTag<UParticleSystemComponent>(SmokeComponentTag.GetTag().GetTagName());
 	ShipMeshComponent = FindComponentByTag<UStaticMeshComponent>(ShipComponentTag.GetTag().GetTagName());
 	CapsuleComponent = FindComponentByClass<UCapsuleComponent>();
+}
+
+void AAsteroidsPawn::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	if (HasAuthority())
+	{
+		static const TArray Palette =
+		{
+			FLinearColor::Red,
+			FLinearColor::Green,
+			FLinearColor::Blue,
+			FLinearColor::Yellow,
+		};
+
+		static int CurrentIndex = 0;
+		PlayerColor = Palette[CurrentIndex % Palette.Num()];
+		++CurrentIndex;
+		SetPlayerColor();
+	}
 }
 
 void AAsteroidsPawn::BeginPlay()
@@ -265,22 +286,6 @@ void AAsteroidsPawn::Tick(const float DeltaSeconds)
 			bShieldTimerActive = false;
 		}
 	}
-	const ENetMode NetMode = GetNetMode();
-	const FString NetModeStr =
-		(NetMode == NM_Client) ? TEXT("CLIENT") :
-		(NetMode == NM_ListenServer) ? TEXT("LISTEN_SERVER") :
-		(NetMode == NM_DedicatedServer) ? TEXT("DEDICATED_SERVER") :
-		TEXT("STANDALONE");
-
-	const FString RoleStr =
-		IsLocallyControlled() ? TEXT("LOCAL_CONTROLLED") : TEXT("SIM_PROXY");
-
-	
-	UE_LOG(LogTemp, Warning, TEXT("[%s | %s] Actor=%s Loc=%s"),
-		*NetModeStr,
-		*RoleStr,
-		*GetName(),
-		*GetReplicatedMovement().Location.ToString());
 }
 
 void AAsteroidsPawn::Server_RegenerateShields_Implementation(const float DeltaSeconds)
@@ -356,7 +361,7 @@ void AAsteroidsPawn::Server_ShotTimerExpired_Implementation()
 	bCanFire = true;
 }
 
-void AAsteroidsPawn::OnHit(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent*, FVector, const FHitResult& Hit)
+void AAsteroidsPawn::OnHit(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent*, FVector, const FHitResult&)
 {
 	if (!HasAuthority())
 	{
@@ -431,4 +436,26 @@ void AAsteroidsPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AAsteroidsPawn, bDamageTimerActive);
 	DOREPLIFETIME(AAsteroidsPawn, bIsProcessingHit);
 	DOREPLIFETIME(AAsteroidsPawn, CurrentDamageTimeDelay);
+	DOREPLIFETIME(AAsteroidsPawn, PlayerColor);
+}
+
+void AAsteroidsPawn::OnRep_PlayerColor() const
+{
+	SetPlayerColor();
+}
+
+void AAsteroidsPawn::SetPlayerColor() const
+{
+	if (!ensureAlways(IsValid(ShipMeshComponent)))
+	{
+		return;
+	}
+
+	UMaterialInstanceDynamic* MaterialInstanceDynamic = ShipMeshComponent->CreateAndSetMaterialInstanceDynamic(0);
+	if (!ensureAlways(IsValid(MaterialInstanceDynamic)))
+	{
+		return;
+	}
+
+	MaterialInstanceDynamic->SetVectorParameterValue("DiffuseColor", PlayerColor);
 }

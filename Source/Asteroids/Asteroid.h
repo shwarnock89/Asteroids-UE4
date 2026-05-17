@@ -56,8 +56,8 @@ private:
 	TObjectPtr<UCapsuleComponent> CapsuleComponent = nullptr;
 
 	// This component automatically handles all multiplayer position smoothing natively
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess))
-	UProjectileMovementComponent* ProjectileMovement = nullptr;
+	UPROPERTY(VisibleAnywhere, Category = "Movement", meta = (AllowPrivateAccess))
+	TObjectPtr<UProjectileMovementComponent> ProjectileMovement = nullptr;
 
 	bool bIsPendingDestroy = false;
 };
