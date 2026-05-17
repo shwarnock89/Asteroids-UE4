@@ -12,15 +12,32 @@ AAsteroidsProjectile::AAsteroidsProjectile()
 	PrimaryActorTick.bStartWithTickEnabled = true;
 
 	InitialLifeSpan = 1.5f;
+
+	PrimaryActorTick.bCanEverTick = true;
+	bReplicates = true;
+
+	// 2. High-performance network frequencies
+	bAlwaysRelevant = true;
+
 }
 
 void AAsteroidsProjectile::DestroyProjectile()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	Destroy();
 }
 
 void AAsteroidsProjectile::OnHit(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent*, FVector, const FHitResult&)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (bIsPendingDestroy)
 	{
 		return;

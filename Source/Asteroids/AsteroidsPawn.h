@@ -8,6 +8,7 @@
 
 #include "AsteroidsPawn.generated.h"
 
+class UAsteroidsMovementComponent;
 class UCapsuleComponent;
 class AAsteroidsProjectile;
 struct FInputActionValue;
@@ -30,26 +31,7 @@ class AAsteroidsPawn : public APawn, public IWorldBoundsHandlingInterface
 
 public:
 
-	/** Offset from the ships location to spawn projectiles */
-	UPROPERTY(Category = Gameplay, EditAnywhere)
-	FVector GunOffset = FVector(90.f, 0.f, 0.f);
-
-	/* How fast the weapon will fire */
-	UPROPERTY(Category = Gameplay, EditAnywhere)
-	float FireRate = 0.1f;
-
-	/** Sound to play each time we fire */
-	UPROPERTY(Category = Audio, EditAnywhere, BlueprintReadWrite)
-	USoundBase* FireSound;
-
-	UPROPERTY(BlueprintAssignable)
-	FOnPlayerHealthUpdated OnPlayerHealthUpdated;
-
-	UPROPERTY(BlueprintAssignable)
-	FOnPlayerShieldUpdated OnPlayerShieldUpdated;
-
-	UPROPERTY(BlueprintAssignable)
-	FOnPlayerDied OnPlayerDied;
+	AAsteroidsPawn(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "Fire")
 	void FireShot();
@@ -62,51 +44,86 @@ public:
 	virtual void Tick(const float DeltaSeconds) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	virtual UCapsuleComponent* GetCapsuleComponent_Implementation() const override { return CapsuleComponent; }
 	virtual EHandlingType GetHandlingType_Implementation() const override { return EHandlingType::Flip; }
 
 private:
 
-	bool bIsDead = false;
+	/** Offset from the ships location to spawn projectiles */
+	UPROPERTY(Category = Weapons, EditDefaultsOnly)
+	FVector GunOffset = FVector(90.f, 0.f, 0.f);
 
-	float PlayerCurrentHealth = 100.0f;
+	/* How fast the weapon will fire */
+	UPROPERTY(Category = Weapons, EditDefaultsOnly)
+	float FireRate = 0.1f;
+
+	/** Sound to play each time we fire */
+	UPROPERTY(Category = Audio, EditDefaultsOnly)
+	USoundBase* FireSound;
+
+	UPROPERTY(BlueprintAssignable, Category = "Health")
+	FOnPlayerHealthUpdated OnPlayerHealthUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Health")
+	FOnPlayerShieldUpdated OnPlayerShieldUpdated;
+
+	UPROPERTY(BlueprintAssignable, Category = "Health")
+	FOnPlayerDied OnPlayerDied;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health")
 	float PlayerMaxHealth = 100.0f;
 
+	UPROPERTY(Replicated)
+	bool bIsDead = false;
+
+	UPROPERTY(Replicated)
+	float PlayerCurrentHealth = 100.0f;
+
+	UPROPERTY(Replicated)
 	float PlayerCurrentShields = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health")
 	float PlayerMaxShields = 100.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health")
 	float ShieldRegenDelay = 6.0f;
+
+	UPROPERTY(Replicated)
 	float ShieldRegenTimer = 0.0f;
+
+	UPROPERTY(Replicated)
 	bool bShieldTimerActive = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health")
 	float ShieldRegenRate = 10.0f;
 
-	UPROPERTY(EditDefaultsOnly)
-	float MaxSpeed = 1000.0f;
-
-	UPROPERTY(EditDefaultsOnly)
+	UPROPERTY(EditDefaultsOnly, Category = "Weapons")
 	int MaxBullets = 2;
 
+	UPROPERTY(Replicated)
 	int CurrentBullets = 0;
 
-	FVector MoveSpeed = FVector::ZeroVector;
-
-	FRotator Rotation = FRotator(0.0f, 0.0f, 0.0f);
-
 	/* Flag to control firing  */
+	UPROPERTY(Replicated)
 	bool bCanFire = true;
 
 	/** Handle for efficient management of ShotTimerExpired timer */
+	UPROPERTY(Replicated)
 	FTimerHandle TimerHandle_ShotTimerExpired;
 
+	UPROPERTY(Replicated)
 	bool bDamageTimerActive = false;
-	bool bIsProcesingHit = false;
+
+	UPROPERTY(Replicated)
+	bool bIsProcessingHit = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health")
 	float DamageTimeDelay = 1.0f;
+
+	UPROPERTY(Replicated)
 	float CurrentDamageTimeDelay = 0.0f;
-
-	UPROPERTY(EditDefaultsOnly)
-	float RotationSpeed = 100.0f;
-
-	UPROPERTY(EditDefaultsOnly)
-	float ThrustStrength = 100.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	UInputMappingContext* DefaultMappingContext = nullptr;
@@ -134,35 +151,47 @@ private:
 
 	UPROPERTY()
 	UStaticMeshComponent* ShipMeshComponent = nullptr;
+	// Our master space velocity that the server controls and replicates to everyone
 
 	UPROPERTY()
-	TObjectPtr<UCapsuleComponent> CapsuleComponent = nullptr;
+	UCapsuleComponent* CapsuleComponent = nullptr;
 
-	FVector2D LastInput = FVector2D::ZeroVector;
+	UPROPERTY(EditDefaultsOnly)
+	UAsteroidsMovementComponent* MovementComponent = nullptr;
 
-	void DealDamage(float Damage);
+	UFUNCTION(Server, Reliable)
+	void Server_DealDamage(float Damage);
 
-	void RegenerateShields(const float DeltaSeconds);
+	UFUNCTION(Server, Reliable)
+	void Server_RegenerateShields(const float DeltaSeconds);
 
-	void Fire(const FInputActionValue& Value);
+	UFUNCTION(Server, Reliable)
+	void Server_Fire(const FInputActionValue& Value);
 
 	UFUNCTION()
 	void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	void HandleMovement(const FInputActionValue& Value);
 
-	void HandleShieldDamage(const float DamageAmount);
+	UFUNCTION(Server, Reliable)
+	void Server_HandleShieldDamage(const float DamageAmount);
 
-	void HandleHealthDamage(const float DamageAmount);
+	UFUNCTION(Server, Reliable)
+	void Server_HandleHealthDamage(const float DamageAmount);
 
-	void HandleDeath();
+	UFUNCTION(Server, Reliable)
+	void Server_HandleDeath();
 
 	/* Handler for the fire timer expiry */
-	void ShotTimerExpired();
+	UFUNCTION(Server, Reliable)
+	void Server_ShotTimerExpired();
 
 	UFUNCTION()
 	void HandleBulletDestroyed(AActor* DestroyedActor);
 
 	UFUNCTION()
 	void DestroyPawn();
+
+	UFUNCTION(Server, Unreliable)
+	void Server_SetInput(FVector2D Input);
 };

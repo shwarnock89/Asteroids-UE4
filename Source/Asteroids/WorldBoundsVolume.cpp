@@ -7,7 +7,7 @@
 
 void UWorldBoundsVolumeSubsystem::SetWorldBoundsVolume(AWorldBoundsVolume& InWorldBoundsVolume)
 {
-	WorldBoundsVolume = InWorldBoundsVolume;
+	WorldBoundsVolume = &InWorldBoundsVolume;
 	OnWorldBoundsVolumeSpawned.ExecuteIfBound(WorldBoundsVolume);
 }
 
@@ -95,6 +95,11 @@ void AWorldBoundsVolume::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AWorldBoundsVolume::HandleEndOverlap(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent*, int32)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (!ensureAlways(IsValid(OtherActor) && IsValid(OtherActor->GetClass()) && OtherActor->GetClass()->ImplementsInterface(UWorldBoundsHandlingInterface::StaticClass())))
 	{
 		return;
@@ -168,5 +173,6 @@ void AWorldBoundsVolume::FlipActorWorldPosition(AActor& Actor) const
 		// Teleport to the opposite side
 
 		Actor.SetActorLocation(NewLocation);
+		IWorldBoundsHandlingInterface::Execute_FireOnTeleportEvent(&Actor);
 	}
 }

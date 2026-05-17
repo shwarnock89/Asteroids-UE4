@@ -16,6 +16,11 @@ bool UHealthPackSpawner::ShouldCreateSubsystem(UObject* Outer) const
 		return false;
 	}
 
+	if (World->GetNetMode() == NM_Client)
+	{
+		return false;
+	}
+
 	const EWorldType::Type WorldType = World->WorldType;
 	return WorldType != EWorldType::Editor && WorldType != EWorldType::EditorPreview && WorldType != EWorldType::Inactive;
 }

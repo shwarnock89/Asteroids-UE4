@@ -9,6 +9,7 @@
 
 #include "Asteroid.generated.h"
 
+class UProjectileMovementComponent;
 class UCapsuleComponent;
 
 UCLASS()
@@ -23,36 +24,40 @@ public:
 
 	ESizes GetSize() const { return Size; }
 
+	UFUNCTION(Server, Reliable, WithValidation)
 	void Initialize(const EStartSides InStartSide, const ESizes InSize);
+
+private:
 
 	virtual UCapsuleComponent* GetCapsuleComponent_Implementation() const override { return CapsuleComponent; }
 	virtual EHandlingType GetHandlingType_Implementation() const override { return EHandlingType::Flip; }
 
-private:
-
 	// Called every frame
 	virtual void PostInitializeComponents() override;
 	virtual void BeginPlay() override;
-	virtual void Tick(const float DeltaTime) override;
+	virtual void Tick(float DeltaTime) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UFUNCTION()
 	void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
-	float MoveSpeed = 0.0f;
-
 	ESizes Size = ESizes::None;
 
 	EStartSides StartSide = EStartSides::None;
 
-	FVector MoveDirection = FVector::ZeroVector;
+	FRotator Rotation = FRotator::ZeroRotator;
 
 	FVector RotationSpeed = FVector::ZeroVector;
 
-	FRotator Rotation = FRotator::ZeroRotator;
+	UPROPERTY(EditDefaultsOnly)
+	FFloatRange SpeedRange = FFloatRange();
 
 	UPROPERTY()
 	TObjectPtr<UCapsuleComponent> CapsuleComponent = nullptr;
+
+	// This component automatically handles all multiplayer position smoothing natively
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess))
+	UProjectileMovementComponent* ProjectileMovement = nullptr;
 
 	bool bIsPendingDestroy = false;
 };

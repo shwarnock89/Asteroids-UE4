@@ -16,6 +16,27 @@ UAsteroidsScoreManager* UAsteroidsScoreManager::GetScoreManager(const UWorld& Wo
 	return GameInstance->GetSubsystem<UAsteroidsScoreManager>();
 }
 
+void UAsteroidsScoreManager::RegisterServerWorld(UWorld& InServerWorld)
+{
+	AuthoritativeServerWorld = &InServerWorld;
+}
+
+bool UAsteroidsScoreManager::IsServerAuthority(UObject* WorldContextObject) const
+{
+	if (!WorldContextObject || !AuthoritativeServerWorld.IsValid())
+	{
+		return false;
+	}
+
+	UWorld* CallingWorld = WorldContextObject->GetWorld();
+	if (!ensureAlways(IsValid(CallingWorld)))
+	{
+		return false;
+	}
+
+	return CallingWorld == AuthoritativeServerWorld && CallingWorld->GetNetMode() != NM_Client;
+}
+
 void UAsteroidsScoreManager::UpdatePlayerScore(const int ScoreUpdateAmount)
 {
 	PlayerScore += ScoreUpdateAmount;

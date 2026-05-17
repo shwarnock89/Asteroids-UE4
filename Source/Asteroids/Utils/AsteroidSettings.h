@@ -27,4 +27,7 @@ public:
 
 	UPROPERTY(Config, EditDefaultsOnly)
 	TSubclassOf<AHealthPack> HealthPackClass = nullptr;
+
+	UPROPERTY(Config, EditDefaultsOnly)
+	TSoftObjectPtr<UWorld> AsteroidsWorld = nullptr;
 };
