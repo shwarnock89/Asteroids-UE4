@@ -1,6 +1,6 @@
 ﻿#include "AsteroidsPlayerController.h"
-#include "Kismet/GameplayStatics.h"
 #include "Camera/CameraActor.h"
+#include "Kismet/GameplayStatics.h"
 
 AAsteroidsPlayerController::AAsteroidsPlayerController(const FObjectInitializer& InitializerModule)
 	: Super(InitializerModule)

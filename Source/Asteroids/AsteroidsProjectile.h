@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
 #include "WorldBoundsVolume.h"
 
 #include "AsteroidsProjectile.generated.h"

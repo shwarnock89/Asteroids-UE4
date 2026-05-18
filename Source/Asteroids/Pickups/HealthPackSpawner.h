@@ -4,12 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+
 #include "HealthPackSpawner.generated.h"
 
 class AHealthPack;
-/**
- * 
- */
+
 UCLASS()
 class ASTEROIDS_API UHealthPackSpawner : public UWorldSubsystem
 {
