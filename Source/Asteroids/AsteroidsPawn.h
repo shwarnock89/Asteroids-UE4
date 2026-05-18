@@ -86,9 +86,8 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> ShipMeshComponent = nullptr;
-	// Our master space velocity that the server controls and replicates to everyone
 
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly)
 	TObjectPtr<UCapsuleComponent> CapsuleComponent = nullptr;
 
 	UPROPERTY(EditDefaultsOnly)
