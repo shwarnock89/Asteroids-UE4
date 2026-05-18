@@ -6,7 +6,6 @@
 #include "AsteroidsScoreManager.h"
 #include "Components/CapsuleComponent.h"
 #include "Utils/AsteroidSettings.h"
-#include "WorldBoundsVolume.h"
 
 // Sets default values
 UAsteroidManager::UAsteroidManager()

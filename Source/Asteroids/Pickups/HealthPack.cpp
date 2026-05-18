@@ -2,8 +2,8 @@
 
 #include "HealthPack.h"
 
-#include "Asteroids/AsteroidsHealthComponent.h"
 #include "Asteroids/AsteroidsPawn.h"
+#include "AsteroidsHealthComponent.h"
 #include "Components/CapsuleComponent.h"
 
 AHealthPack::AHealthPack(const FObjectInitializer& ObjectInitializer)
@@ -44,7 +44,7 @@ void AHealthPack::OnBeginOverlap(UPrimitiveComponent*, AActor*, UPrimitiveCompon
 		return;
 	}
 
-	AAsteroidsPawn* AsteroidsPawn = Cast<AAsteroidsPawn>(OtherComp->GetOwner());
+	const AAsteroidsPawn* AsteroidsPawn = Cast<AAsteroidsPawn>(OtherComp->GetOwner());
 	if (!IsValid(AsteroidsPawn))
 	{
 		return;
@@ -56,6 +56,6 @@ void AHealthPack::OnBeginOverlap(UPrimitiveComponent*, AActor*, UPrimitiveCompon
 		return;
 	}
 
-	HealthComponent->HandleHealthPackPickedUp(HealthIncrease);
+	HealthComponent->Server_HandleHealthPackPickedUp(HealthIncrease);
 	Destroy();
 }

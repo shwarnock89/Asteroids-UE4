@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "AsteroidManager.h"
-#include "GameFramework/Actor.h"
 #include "WorldBoundsVolume.h"
 
 #include "Asteroid.generated.h"

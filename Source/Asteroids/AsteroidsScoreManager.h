@@ -8,6 +8,7 @@
 #include "AsteroidsScoreManager.generated.h"
 
 struct FHighScore;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerScoreUpdated, const int, NewScore);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNewHighScore, const int, NewHighScore);
 

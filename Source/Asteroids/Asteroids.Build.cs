@@ -20,5 +20,14 @@ public class Asteroids : ModuleRules
 			"OnlineSubsystem",
 			"OnlineSubsystemUtils"
 		});
-    }
+
+		PrivateIncludePaths.AddRange(new string[]
+			{
+				"Asteroids",
+				"Asteroids/Components",
+				"Asteroids/Networking",
+				"Asteroids/Pickups",
+				"Asteroids/Utils"
+			});
+	}
 }

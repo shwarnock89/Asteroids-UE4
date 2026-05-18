@@ -3,7 +3,6 @@
 #include "AsteroidsGameMode.h"
 #include "AsteroidsPlayerController.h"
 #include "AsteroidsScoreManager.h"
-#include "Engine.h"
 
 AAsteroidsGameMode::AAsteroidsGameMode()
 {
