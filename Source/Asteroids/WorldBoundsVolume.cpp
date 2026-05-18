@@ -3,7 +3,6 @@
 #include "WorldBoundsVolume.h"
 
 #include "Components/CapsuleComponent.h"
-#include "Components/ShapeComponent.h"
 
 void UWorldBoundsVolumeSubsystem::SetWorldBoundsVolume(AWorldBoundsVolume& InWorldBoundsVolume)
 {
