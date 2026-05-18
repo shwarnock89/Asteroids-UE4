@@ -23,6 +23,13 @@ AAsteroidsPawn::AAsteroidsPawn(const FObjectInitializer& ObjectInitializer)
 	SetNetUpdateFrequency(60.0f);
 	SetMinNetUpdateFrequency(30.0f);
 
+	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComponent"));
+	if (!ensureAlways(IsValid(CapsuleComponent)))
+	{
+		return;
+	}
+
+	RootComponent = CapsuleComponent;
 	MovementComponent = CreateDefaultSubobject<UAsteroidsMovementComponent>(TEXT("AsteroidsMovementComponent"));
 	HealthComponent = CreateDefaultSubobject<UAsteroidsHealthComponent>(TEXT("AsteroidsHealthComponent"));
 }

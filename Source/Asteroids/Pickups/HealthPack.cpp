@@ -10,6 +10,7 @@ AHealthPack::AHealthPack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>("CapsuleComponent");
+	bReplicates = true;
 }
 
 void AHealthPack::BeginPlay()

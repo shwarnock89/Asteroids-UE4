@@ -5,10 +5,15 @@
 #include "AsteroidsScoreManager.h"
 #include "Components/CapsuleComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "WorldBoundsVolume.h"
 
-UAsteroidsHealthComponent::UAsteroidsHealthComponent(const FObjectInitializer& Initializer)
-	: Super(Initializer)
+UE_DEFINE_GAMEPLAY_TAG(FireComponentTag, "Component.Fire");
+UE_DEFINE_GAMEPLAY_TAG(SmokeComponentTag, "Component.Smoke");
+UE_DEFINE_GAMEPLAY_TAG(ExplosionComponentTag, "Component.Explosion");
+
+UAsteroidsHealthComponent::UAsteroidsHealthComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	SetIsReplicatedByDefault(true);
@@ -21,22 +26,28 @@ void UAsteroidsHealthComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 	DOREPLIFETIME(UAsteroidsHealthComponent, bDamageTimerActive);
 	DOREPLIFETIME(UAsteroidsHealthComponent, CurrentDamageTimeDelay);
 	DOREPLIFETIME(UAsteroidsHealthComponent, bIsDead);
-	DOREPLIFETIME(UAsteroidsHealthComponent, PlayerCurrentHealth);
-	DOREPLIFETIME(UAsteroidsHealthComponent, PlayerCurrentShields);
 	DOREPLIFETIME(UAsteroidsHealthComponent, ShieldRegenTimer);
 	DOREPLIFETIME(UAsteroidsHealthComponent, bShieldTimerActive);
+
+	DOREPLIFETIME_CONDITION(UAsteroidsHealthComponent, PlayerCurrentHealth, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UAsteroidsHealthComponent, PlayerCurrentShields, COND_OwnerOnly);
 }
 
 void UAsteroidsHealthComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (!ensureAlways(IsValid(GetOwner()) && IsValid(GetOwner()->GetClass()) && GetOwner()->GetClass()->ImplementsInterface(UWorldBoundsHandlingInterface::StaticClass())))
+	const AActor* Owner = GetOwner();
+	if (!ensureAlways(IsValid(Owner) && IsValid(Owner->GetClass()) && Owner->GetClass()->ImplementsInterface(UWorldBoundsHandlingInterface::StaticClass())))
 	{
 		return;
 	}
 
-	UCapsuleComponent* OwnerCapsule = IWorldBoundsHandlingInterface::Execute_GetCapsuleComponent(GetOwner());
+	SmokeComponent = Owner->FindComponentByTag<UParticleSystemComponent>(SmokeComponentTag.GetTag().GetTagName());
+	ExplosionComponent = Owner->FindComponentByTag<UParticleSystemComponent>(ExplosionComponentTag.GetTag().GetTagName());
+	FireComponent = Owner->FindComponentByTag<UParticleSystemComponent>(FireComponentTag.GetTag().GetTagName());
+
+	UCapsuleComponent* OwnerCapsule = IWorldBoundsHandlingInterface::Execute_GetCapsuleComponent(Owner);
 	if (!ensureAlways(IsValid(OwnerCapsule)))
 	{
 		return;
@@ -230,7 +241,7 @@ void UAsteroidsHealthComponent::OnHit(UPrimitiveComponent*, AActor* OtherActor, 
 	bIsProcessingHit = false;
 }
 
-void UAsteroidsHealthComponent::HandleHealthPackPickedUp(const float HealthIncreaseAmount)
+void UAsteroidsHealthComponent::Server_HandleHealthPackPickedUp_Implementation(const float HealthIncreaseAmount)
 {
 	if (!ensureAlways(IsValid(GetOwner()) && GetOwner()->HasAuthority()))
 	{
@@ -245,10 +256,36 @@ void UAsteroidsHealthComponent::HandleHealthPackPickedUp(const float HealthIncre
 
 void UAsteroidsHealthComponent::OnRep_Health() const
 {
+	const float HealthPercentage = PlayerCurrentHealth / PlayerMaxHealth;
+
 	if (PlayerMaxHealth > 0.0f)
 	{
-		const float HealthPercentage = PlayerCurrentHealth / PlayerMaxHealth;
 		OnPlayerHealthUpdated.Broadcast(HealthPercentage);
+	}
+
+	if (HealthPercentage <= 0.25f)
+	{
+		if (!ensureAlways(FireComponent.IsValid()))
+		{
+			return;
+		}
+
+		FireComponent->ActivateSystem();
+	}
+	else if (HealthPercentage <= 0.5f)
+	{
+		if (!ensureAlways(FireComponent.IsValid() && SmokeComponent.IsValid()))
+		{
+			return;
+		}
+
+		SmokeComponent->ActivateSystem();
+		FireComponent->DeactivateSystem();
+	}
+	else
+	{
+		SmokeComponent->DeactivateSystem();
+		FireComponent->DeactivateSystem();
 	}
 }
 

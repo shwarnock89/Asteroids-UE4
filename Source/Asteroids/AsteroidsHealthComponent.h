@@ -4,12 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "NativeGameplayTags.h"
 
 #include "AsteroidsHealthComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerHealthUpdated, const float, PlayerHealthPercentage);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerShieldUpdated, const float, PlayerCurrentShields);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDied);
+
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(FireComponentTag);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(SmokeComponentTag);
+UE_DECLARE_GAMEPLAY_TAG_EXTERN(ExplosionComponentTag);
 
 UCLASS()
 class UAsteroidsHealthComponent : public UActorComponent
@@ -18,9 +23,10 @@ class UAsteroidsHealthComponent : public UActorComponent
 
 public:
 
-	UAsteroidsHealthComponent(const FObjectInitializer& InitializerModule);
+	UAsteroidsHealthComponent(const FObjectInitializer& ObjectInitializer);
 
-	void HandleHealthPackPickedUp(const float HealthIncreaseAmount);
+	UFUNCTION(Server, Reliable)
+	void Server_HandleHealthPackPickedUp(const float HealthIncreaseAmount);
 
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -75,6 +81,24 @@ private:
 
 	UPROPERTY(Replicated)
 	float CurrentDamageTimeDelay = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Visuals")
+	TObjectPtr<UParticleSystem> FireSystem = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Visuals")
+	TObjectPtr<UParticleSystem> SmokeSystem = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Visuals")
+	TObjectPtr<UParticleSystem> ExplosionSystem = nullptr;
+
+	UPROPERTY(EditDefaultsOnly)
+	TWeakObjectPtr<UParticleSystemComponent> FireComponent = nullptr;
+
+	UPROPERTY(EditDefaultsOnly)
+	TWeakObjectPtr<UParticleSystemComponent> SmokeComponent = nullptr;
+
+	UPROPERTY(EditDefaultsOnly)
+	TWeakObjectPtr<UParticleSystemComponent> ExplosionComponent = nullptr;
 
 	UFUNCTION()
 	void OnRep_Health() const;
