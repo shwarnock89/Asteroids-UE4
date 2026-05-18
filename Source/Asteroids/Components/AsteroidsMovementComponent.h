@@ -39,17 +39,20 @@ public:
 
 private:
 
-	UPROPERTY(EditAnywhere, Category="Movement")
+	UPROPERTY(EditDefaultsOnly, Category="Movement")
 	float ThrustStrength = 1500.f;
 
-	UPROPERTY(EditAnywhere, Category="Movement")
+	UPROPERTY(EditDefaultsOnly, Category="Movement")
 	float RotationSpeed = 180.f;
 
-	UPROPERTY(EditAnywhere, Category="Movement")
+	UPROPERTY(EditDefaultsOnly, Category="Movement")
 	float MaxSpeed = 2500.f;
 
-	UPROPERTY(EditAnywhere, Category="Movement")
+	UPROPERTY(EditDefaultsOnly, Category="Movement")
 	float LinearDamping = 0.1f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	float BounceFactor = 0.4f;
 
 	UPROPERTY(ReplicatedUsing=OnRep_ServerState)
 	FShipState ServerState;
@@ -64,7 +67,7 @@ private:
 
 	UFUNCTION()
 	void OnRep_ServerState();
-	
+
 	UFUNCTION()
 	virtual void HandleTeleportOccurred();
 

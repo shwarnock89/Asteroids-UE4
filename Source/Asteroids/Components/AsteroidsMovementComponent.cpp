@@ -107,7 +107,9 @@ void UAsteroidsMovementComponent::TickComponent(const float DeltaTime, const ELe
 
 	if (Hit.IsValidBlockingHit())
 	{
-		Velocity = FMath::GetReflectionVector(Velocity, Hit.Normal);
+		const FVector NormalComponent = FVector::DotProduct(Velocity, Hit.Normal) * Hit.Normal;
+		const FVector TangentComponent = Velocity - NormalComponent;
+		Velocity = TangentComponent - NormalComponent * BounceFactor;
 		Velocity.Z = 0.f;
 	}
 
