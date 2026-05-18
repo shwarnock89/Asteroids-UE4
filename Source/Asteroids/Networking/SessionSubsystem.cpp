@@ -2,7 +2,7 @@
 
 #include "SessionSubsystem.h"
 
-#include "Asteroids/Utils/AsteroidSettings.h"
+#include "AsteroidSettings.h"
 #include "GameFramework/PlayerState.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "Kismet/GameplayStatics.h"

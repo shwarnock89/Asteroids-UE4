@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Asteroids/WorldBoundsVolume.h"
+#include "WorldBoundsVolume.h"
 
 #include "HealthPack.generated.h"
 
