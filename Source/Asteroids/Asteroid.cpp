@@ -21,7 +21,7 @@ AAsteroid::AAsteroid()
 	// Configure the component for a frictionless, zero-gravity arcade environment
 	ProjectileMovement->UpdatedComponent = RootComponent;
 	ProjectileMovement->bRotationFollowsVelocity = false;
-	ProjectileMovement->bShouldBounce = false;
+	ProjectileMovement->bShouldBounce = true;
 	ProjectileMovement->ProjectileGravityScale = 0.f; // 2D Arcade physics
 }
 
