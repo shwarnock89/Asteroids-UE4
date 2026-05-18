@@ -2,11 +2,11 @@
 
 #include "HealthPackSpawner.h"
 
-#include "Asteroids/AsteroidManager.h"
-#include "Asteroids/Utils/AsteroidSettings.h"
-#include "Asteroids/WorldBoundsVolume.h"
+#include "AsteroidManager.h"
+#include "AsteroidSettings.h"
 #include "Components/CapsuleComponent.h"
 #include "HealthPack.h"
+#include "WorldBoundsVolume.h"
 
 bool UHealthPackSpawner::ShouldCreateSubsystem(UObject* Outer) const
 {

@@ -2,8 +2,8 @@
 
 #include "HealthPack.h"
 
-#include "Asteroids/AsteroidsPawn.h"
 #include "AsteroidsHealthComponent.h"
+#include "AsteroidsPawn.h"
 #include "Components/CapsuleComponent.h"
 
 AHealthPack::AHealthPack(const FObjectInitializer& ObjectInitializer)

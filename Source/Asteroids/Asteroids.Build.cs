@@ -25,8 +25,11 @@ public class Asteroids : ModuleRules
 			{
 				"Asteroids",
 				"Asteroids/Components",
+				"Asteroids/Game",
+				"Asteroids/Managers",
 				"Asteroids/Networking",
 				"Asteroids/Pickups",
+				"Asteroids/Player",
 				"Asteroids/Utils"
 			});
 	}
