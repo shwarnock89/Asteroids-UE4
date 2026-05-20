@@ -1,5 +1,7 @@
 ﻿#include "AsteroidsPawnMovementComponent.h"
 
+#include "Components/CapsuleComponent.h"
+#include "Engine/OverlapResult.h"
 #include "Interfaces/HitReactInterface.h"
 #include "WorldBoundsVolume.h"
 
@@ -29,6 +31,14 @@ void UAsteroidsPawnMovementComponent::BeginPlay()
 	}
 
 	OnTeleportHandle = WorldBoundsHandlingInterface->GetOnTeleport().AddUObject(this, &UAsteroidsPawnMovementComponent::HandleTeleportOccurred);
+
+	UCapsuleComponent* CapsuleComponent = IWorldBoundsHandlingInterface::Execute_GetCapsuleComponent(PawnOwner);
+	if (!ensureAlways(IsValid(CapsuleComponent)))
+	{
+		return;
+	}
+
+	CapsuleComponent->OnComponentBeginOverlap.AddDynamic(this, &UAsteroidsPawnMovementComponent::HandleOverlap);
 }
 
 void UAsteroidsPawnMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -47,6 +57,22 @@ void UAsteroidsPawnMovementComponent::EndPlay(const EEndPlayReason::Type EndPlay
 	}
 
 	WorldBoundsHandlingInterface->GetOnTeleport().Remove(OnTeleportHandle);
+
+	UCapsuleComponent* CapsuleComponent = IWorldBoundsHandlingInterface::Execute_GetCapsuleComponent(PawnOwner);
+	if (!ensureAlways(IsValid(CapsuleComponent)))
+	{
+		return;
+	}
+
+	CapsuleComponent->OnComponentBeginOverlap.RemoveDynamic(this, &UAsteroidsPawnMovementComponent::HandleOverlap);
+}
+
+void UAsteroidsPawnMovementComponent::HandleOverlap(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent*, int32, bool, const FHitResult& SweepResult)
+{
+	if (Velocity.IsNearlyZero() && IsValid(OtherActor) && OtherActor->Implements<UHitReactInterface>())
+	{
+		DoReflection(SweepResult);
+	}
 }
 
 void UAsteroidsPawnMovementComponent::HandleTeleportOccurred()
@@ -129,6 +155,11 @@ void UAsteroidsPawnMovementComponent::TickComponent(const float DeltaTime, const
 
 	DoMovement(DeltaTime, NewRot);
 
+	if (bIsServer && Velocity.IsNearlyZero())
+	{
+		DoStationaryCollisionCheck();
+	}
+
 	//-------------------------------------------------
 	// AUTONOMOUS PROXY RECONCILIATION
 	//-------------------------------------------------
@@ -177,6 +208,70 @@ void UAsteroidsPawnMovementComponent::TickComponent(const float DeltaTime, const
 		ServerState.Position = UpdatedComponent->GetComponentLocation();
 		ServerState.Rotation = UpdatedComponent->GetComponentRotation();
 		ServerState.Velocity = Velocity;
+	}
+}
+
+void UAsteroidsPawnMovementComponent::DoStationaryCollisionCheck()
+{
+	if (!ensureAlways(IsValid(GetOwner()) && GetOwner()->HasAuthority()))
+	{
+		return;
+	}
+
+	if (!ensureAlways(IsValid(GetWorld())))
+	{
+		return;
+	}
+
+	const UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(UpdatedComponent);
+	if (!ensureAlways(IsValid(PrimitiveComponent)))
+	{
+		return;
+	}
+
+	TArray<FOverlapResult> Overlaps;
+	FCollisionObjectQueryParams Params;
+	GetWorld()->OverlapMultiByObjectType(Overlaps, GetActorLocation(), UpdatedComponent->GetComponentQuat(), Params, PrimitiveComponent->GetCollisionShape());
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		if (!Overlap.bBlockingHit)
+		{
+			continue;
+		}
+
+		if (Overlap.GetActor() == PawnOwner)
+		{
+			continue;
+		}
+
+		if (!Overlap.GetActor()->Implements<UHitReactInterface>())
+		{
+			return;
+		}
+
+		const AActor* OverlapActor = Overlap.GetActor();
+		if (!ensureAlways(IsValid(OverlapActor)))
+		{
+			return;
+		}
+
+		FHitResult SyntheticHit;
+		SyntheticHit.bBlockingHit = true;
+		SyntheticHit.Component = Overlap.Component;
+		SyntheticHit.ImpactNormal = (GetActorLocation() - OverlapActor->GetActorLocation()).GetSafeNormal();
+		SyntheticHit.Normal = SyntheticHit.ImpactNormal;
+		SyntheticHit.Location = GetActorLocation();
+		SyntheticHit.HitObjectHandle = Overlap.OverlapObjectHandle;
+
+		FVector IncomingVelocity = OverlapActor->GetVelocity();
+		if (IncomingVelocity.IsNearlyZero())
+		{
+			// Fallback but shouldn't happen
+			IncomingVelocity = -SyntheticHit.ImpactNormal * 300.0f;
+		}
+
+		Velocity = IncomingVelocity;
+		DoReflection(SyntheticHit);
 	}
 }
 

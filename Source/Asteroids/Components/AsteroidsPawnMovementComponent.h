@@ -74,6 +74,8 @@ private:
 
 	void DoMovement(const float DeltaTime, const FRotator& NewRotation);
 
+	void DoStationaryCollisionCheck();
+
 	FDelegateHandle OnHitHandle;
 	FDelegateHandle OnTeleportHandle;
 
@@ -81,6 +83,9 @@ private:
 	void OnRep_ServerState();
 
 	void DoReflection(const FHitResult& Hit);
+
+	UFUNCTION()
+	void HandleOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	UFUNCTION()
 	virtual void HandleTeleportOccurred();
