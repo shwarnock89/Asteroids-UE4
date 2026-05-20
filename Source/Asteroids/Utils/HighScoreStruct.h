@@ -19,6 +19,8 @@ struct FHighScore
 		HighScore = InScore;
 	}
 
+	bool IsValid() const { return HighScore > 0; }
+
 	UPROPERTY(BlueprintReadWrite)
 	FText Initials;
 

@@ -14,5 +14,19 @@ class AAsteroidsPlayerController : public APlayerController
 
 	virtual void BeginPlay() override;
 
+	virtual void OnPossess(APawn* InPawn) override;
+
 	void AssignCamera();
+
+	virtual void OnRep_PlayerState() override;
+
+	void InitHUD();
+
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UUserWidget> HUDClass = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> HUDWidget = nullptr;
+
+	bool bHUDInitialized = false;
 };

@@ -17,7 +17,7 @@ enum class EHandlingType : uint8
 	Flip
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTeleport);
+DECLARE_EVENT(IWorldBoundsHandlingInterface, FOnTeleport);
 
 UINTERFACE()
 class UWorldBoundsHandlingInterface : public UInterface
@@ -76,7 +76,7 @@ class ASTEROIDS_API AWorldBoundsVolume : public ATriggerBox
 {
 	GENERATED_BODY()
 
-public:
+private:
 
 	AWorldBoundsVolume();
 
@@ -85,8 +85,6 @@ public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
-private:
 
 	UFUNCTION()
 	void HandleEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);

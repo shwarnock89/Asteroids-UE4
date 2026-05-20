@@ -9,7 +9,7 @@
 #include "AsteroidsPawn.generated.h"
 
 class UAsteroidsHealthComponent;
-class UAsteroidsMovementComponent;
+class UAsteroidsPawnMovementComponent;
 class UCapsuleComponent;
 class AAsteroidsProjectile;
 struct FInputActionValue;
@@ -25,6 +25,11 @@ class AAsteroidsPawn : public APawn, public IWorldBoundsHandlingInterface
 
 public:
 
+	UFUNCTION(BlueprintPure)
+	UAsteroidsHealthComponent* GetHealthComponent() const { return HealthComponent;}
+
+private:
+
 	AAsteroidsPawn(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "Fire")
@@ -38,13 +43,10 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+	virtual FVector GetVelocity() const override;
+
 	virtual UCapsuleComponent* GetCapsuleComponent_Implementation() const override { return CapsuleComponent; }
 	virtual EHandlingType GetHandlingType_Implementation() const override { return EHandlingType::Flip; }
-
-	UFUNCTION(BlueprintPure)
-	UAsteroidsHealthComponent* GetHealthComponent() const { return HealthComponent;}
-
-private:
 
 	/** Offset from the ships location to spawn projectiles */
 	UPROPERTY(Category = Weapons, EditDefaultsOnly)
@@ -91,7 +93,7 @@ private:
 	TObjectPtr<UCapsuleComponent> CapsuleComponent = nullptr;
 
 	UPROPERTY(EditDefaultsOnly)
-	TObjectPtr<UAsteroidsMovementComponent> MovementComponent = nullptr;
+	TObjectPtr<UAsteroidsPawnMovementComponent> MovementComponent = nullptr;
 
 	UPROPERTY(EditDefaultsOnly)
 	TObjectPtr<UAsteroidsHealthComponent> HealthComponent = nullptr;

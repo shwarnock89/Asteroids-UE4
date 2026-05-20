@@ -4,15 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "AsteroidManager.h"
+#include "Interfaces/HitReactInterface.h"
 #include "WorldBoundsVolume.h"
 
 #include "Asteroid.generated.h"
 
-class UProjectileMovementComponent;
+class UAsteroidsMovementComponent;
 class UCapsuleComponent;
 
 UCLASS()
-class ASTEROIDS_API AAsteroid : public AActor, public IWorldBoundsHandlingInterface
+class ASTEROIDS_API AAsteroid : public AActor, public IWorldBoundsHandlingInterface, public IHitReactInterface
 {
 	GENERATED_BODY()
 
@@ -56,7 +57,8 @@ private:
 
 	// This component automatically handles all multiplayer position smoothing natively
 	UPROPERTY(VisibleAnywhere, Category = "Movement", meta = (AllowPrivateAccess))
-	TObjectPtr<UProjectileMovementComponent> ProjectileMovement = nullptr;
+	TObjectPtr<UAsteroidsMovementComponent> ProjectileMovement = nullptr;
 
 	bool bIsPendingDestroy = false;
+	bool bIsProcessingHit = false;
 };

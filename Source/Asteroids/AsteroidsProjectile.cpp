@@ -2,8 +2,8 @@
 
 #include "AsteroidsProjectile.h"
 
-#include "Asteroid.h"
 #include "Components/CapsuleComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 AAsteroidsProjectile::AAsteroidsProjectile()
 {
@@ -18,7 +18,6 @@ AAsteroidsProjectile::AAsteroidsProjectile()
 
 	// 2. High-performance network frequencies
 	bAlwaysRelevant = true;
-
 }
 
 void AAsteroidsProjectile::DestroyProjectile()
@@ -48,11 +47,7 @@ void AAsteroidsProjectile::OnHit(UPrimitiveComponent*, AActor* OtherActor, UPrim
 		return;
 	}
 
-	if (!OtherActor->IsA<AAsteroid>())
-	{
-		return;
-	}
-
+	UGameplayStatics::ApplyDamage(OtherActor, 10.0f, GetInstigator()->GetController(), this, nullptr);
 	DestroyProjectile();
 	bIsPendingDestroy = true;
 }

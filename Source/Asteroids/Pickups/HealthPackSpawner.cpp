@@ -90,7 +90,7 @@ void UHealthPackSpawner::SpawnHealthPack()
 
 	FTransform SpawnTransform(FRotator::ZeroRotator, WorldBoundsVolumeSubsystem->GetValidWorldLocation(), FVector(0.5f));
 	AActor* HealthPack = GetWorld()->SpawnActorDeferred<AHealthPack>(AsteroidSettings->HealthPackClass, SpawnTransform);
-	if (!ensureAlways(HealthPack) && IsValid(HealthPack->GetClass()) && HealthPack->GetClass()->ImplementsInterface(UWorldBoundsHandlingInterface::StaticClass()))
+	if (!ensureAlways(HealthPack) && HealthPack->Implements<UWorldBoundsHandlingInterface>())
 	{
 		return;
 	}

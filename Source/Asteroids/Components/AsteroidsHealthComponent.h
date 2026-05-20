@@ -23,10 +23,15 @@ class UAsteroidsHealthComponent : public UActorComponent
 
 public:
 
-	UAsteroidsHealthComponent(const FObjectInitializer& ObjectInitializer);
-
 	UFUNCTION(Server, Reliable)
 	void Server_HandleHealthPackPickedUp(const float HealthIncreaseAmount);
+
+	UPROPERTY(BlueprintAssignable, Category = "Health")
+	FOnPlayerDied OnPlayerDied;
+
+private:
+
+	UAsteroidsHealthComponent(const FObjectInitializer& ObjectInitializer);
 
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -37,11 +42,6 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Health")
 	FOnPlayerShieldUpdated OnPlayerShieldUpdated;
-
-	UPROPERTY(BlueprintAssignable, Category = "Health")
-	FOnPlayerDied OnPlayerDied;
-
-private:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Health")
 	float PlayerMaxHealth = 100.0f;
@@ -101,10 +101,10 @@ private:
 	TWeakObjectPtr<UParticleSystemComponent> ExplosionComponent = nullptr;
 
 	UFUNCTION()
-	void OnRep_Health() const;
+	void OnRep_Health();
 
 	UFUNCTION()
-	void OnRep_Shields() const;
+	void OnRep_Shields();
 
 	UFUNCTION(Server, Reliable)
 	void Server_DealDamage(float Damage);
@@ -113,7 +113,7 @@ private:
 	void Server_RegenerateShields(const float DeltaSeconds);
 
 	UFUNCTION()
-	void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	void HandleDamage(AActor* DamagedActor, const float Damage, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser);
 
 	void HandleShieldDamage(const float DamageAmount);
 	void HandleHealthDamage(const float DamageAmount);

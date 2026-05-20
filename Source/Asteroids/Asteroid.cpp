@@ -2,9 +2,9 @@
 
 #include "Asteroid.h"
 
-#include "AsteroidsProjectile.h"
+#include "AsteroidsMovementComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "GameFramework/ProjectileMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AAsteroid::AAsteroid()
@@ -16,13 +16,9 @@ AAsteroid::AAsteroid()
 	bAlwaysRelevant = true;
 
 	// 3. Initialize the Projectile Movement Component
-	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
+	ProjectileMovement = CreateDefaultSubobject<UAsteroidsMovementComponent>(TEXT("ProjectileMovement"));
 
 	// Configure the component for a frictionless, zero-gravity arcade environment
-	ProjectileMovement->UpdatedComponent = RootComponent;
-	ProjectileMovement->bRotationFollowsVelocity = false;
-	ProjectileMovement->bShouldBounce = true;
-	ProjectileMovement->ProjectileGravityScale = 0.f; // 2D Arcade physics
 }
 
 void AAsteroid::PostInitializeComponents()
@@ -81,8 +77,6 @@ bool AAsteroid::Initialize_Validate(const EStartSides InStartSide, const ESizes 
 
 void AAsteroid::Initialize_Implementation(const EStartSides InStartSide, const ESizes InSize)
 {
-	ProjectileMovement->InitialSpeed = FMath::RandRange(500, 1000);
-	ProjectileMovement->MaxSpeed = ProjectileMovement->InitialSpeed;
 	StartSide = InStartSide;
 	Size = InSize;
 
@@ -129,33 +123,24 @@ void AAsteroid::Initialize_Implementation(const EStartSides InStartSide, const E
 		default: ;
 	}
 
-	ProjectileMovement->Velocity = MoveDirection * ProjectileMovement->MaxSpeed;
+	ProjectileMovement->SetVelocity(MoveDirection * FMath::RandRange(500.0f, 1000.0f));
 
 	const float Speed = FMath::RandRange(20, 120);
 	RotationSpeed = FVector(Speed, 0, Speed);
 	Rotation = FRotator(FMath::RandRange(0, 360), FMath::RandRange(0, 360), FMath::RandRange(0, 360));
 }
 
-void AAsteroid::OnHit(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector, const FHitResult&)
+void AAsteroid::OnHit(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent*, FVector, const FHitResult&)
 {
 	if (!HasAuthority())
 	{
 		return;
 	}
 
-	if (bIsPendingDestroy)
+	if (!ensureAlways(IsValid(OtherActor)))
 	{
 		return;
 	}
 
-	if (!ensureAlways(OtherActor))
-	{
-		return;
-	}
-
-	if (OtherComp->GetOwner()->IsA<AAsteroidsProjectile>())
-	{
-		Destroy();
-		bIsPendingDestroy = true;
-	}
+	UGameplayStatics::ApplyDamage(OtherActor, 10.0f, nullptr, this, nullptr);
 }
