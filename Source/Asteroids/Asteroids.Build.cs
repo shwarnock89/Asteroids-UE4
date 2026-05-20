@@ -18,7 +18,8 @@ public class Asteroids : ModuleRules
 			"GameplayTags",
 			"InputCore",
 			"OnlineSubsystem",
-			"OnlineSubsystemUtils"
+			"OnlineSubsystemUtils",
+			"UMG"
 		});
 
 		PrivateIncludePaths.AddRange(new string[]

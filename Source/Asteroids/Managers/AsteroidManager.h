@@ -59,7 +59,7 @@ private:
 	AAsteroid* CreateAsteroid(const FVector& StartPos, const EStartSides StartSide, const ESizes Size);
 
 	UFUNCTION()
-	void HandleAsteroidDestroyed(AActor* DestroyedActor);
+	void HandleAsteroidDamaged(AActor* DamagedActor, float Damage, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser);
 
 	int SpawnMultiplier = 0;
 };

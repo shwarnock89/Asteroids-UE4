@@ -1,11 +1,14 @@
-﻿#pragma once
+﻿// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/PawnMovementComponent.h"
+#include "Components/ActorComponent.h"
+
 #include "AsteroidsMovementComponent.generated.h"
 
 USTRUCT()
-struct FShipState
+struct FAsteroidState
 {
 	GENERATED_BODY()
 
@@ -22,54 +25,53 @@ struct FShipState
 	bool bTeleported = false;
 };
 
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class UAsteroidsMovementComponent : public UPawnMovementComponent
+
+UCLASS()
+class ASTEROIDS_API UAsteroidsMovementComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 
+	// Sets default values for this component's properties
 	UAsteroidsMovementComponent();
 
-	virtual void BeginPlay() override;
-
-	virtual void TickComponent(const float DeltaTime, const ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
-	void SetInputVector(const FVector2D& Input);
+	void SetVelocity(const FVector& InVelocity);
 
 private:
 
-	UPROPERTY(EditDefaultsOnly, Category="Movement")
-	float ThrustStrength = 1500.f;
+	virtual void BeginPlay() override;
+	virtual void TickComponent(const float DeltaTime, const ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	UPROPERTY(EditDefaultsOnly, Category="Movement")
-	float RotationSpeed = 180.f;
-
-	UPROPERTY(EditDefaultsOnly, Category="Movement")
-	float MaxSpeed = 2500.f;
-
-	UPROPERTY(EditDefaultsOnly, Category="Movement")
-	float LinearDamping = 0.1f;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Movement")
-	float BounceFactor = 0.4f;
-
-	UPROPERTY(ReplicatedUsing=OnRep_ServerState)
-	FShipState ServerState;
-
-	FVector Velocity;
-
-	FVector2D CurrentInput;
-
-	FVector TargetLocation = FVector::ZeroVector;
-	FVector TargetVelocity = FVector::ZeroVector;
-	FRotator TargetRotation = FRotator::ZeroRotator;
-
-	UFUNCTION()
-	void OnRep_ServerState();
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION()
 	virtual void HandleTeleportOccurred();
 
-	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+	void DoAsteroidsReflection(const FHitResult& Hit, const AActor* HitActor);
+
+	UFUNCTION()
+	void OnRep_ServerState();
+
+	void SimulateAsteroid(const float DeltaTime) const;
+
+	void HandleHit(const FHitResult& Hit, const AActor* HitActor);
+
+	UPROPERTY(EditDefaultsOnly)
+	float MinDotToIgnoreReflection = 0.8f;
+
+	UPROPERTY(ReplicatedUsing = OnRep_ServerState);
+	FAsteroidState ServerState;
+
+	FVector Velocity = FVector::ZeroVector;
+
+	FVector TargetPosition = FVector::ZeroVector;
+	FVector TargetVelocity = FVector::ZeroVector;
+	FRotator TargetRotation = FRotator::ZeroRotator;
+
+	UPROPERTY()
+	TObjectPtr<UPrimitiveComponent> UpdatedComponent = nullptr;
+
+	FDelegateHandle OnTeleportHandle;
 };

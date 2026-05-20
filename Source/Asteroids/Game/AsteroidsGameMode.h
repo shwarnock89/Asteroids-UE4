@@ -12,7 +12,6 @@ class AAsteroidsGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 
-public:
 	AAsteroidsGameMode();
 
 	virtual void BeginPlay() override;

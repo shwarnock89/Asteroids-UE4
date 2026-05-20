@@ -2,7 +2,11 @@
 
 #include "AsteroidsScoreManager.h"
 
+#include "AsteroidsGameState.h"
+#include "AsteroidsPlayerState.h"
 #include "AsteroidsSaveGame.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
 
 UAsteroidsScoreManager* UAsteroidsScoreManager::GetScoreManager(const UWorld& World)
@@ -16,35 +20,43 @@ UAsteroidsScoreManager* UAsteroidsScoreManager::GetScoreManager(const UWorld& Wo
 	return GameInstance->GetSubsystem<UAsteroidsScoreManager>();
 }
 
-void UAsteroidsScoreManager::RegisterServerWorld(UWorld& InServerWorld)
+void UAsteroidsScoreManager::UpdatePlayerScore(const int ScoreUpdateAmount, const APawn& Pawn) const
 {
-	AuthoritativeServerWorld = &InServerWorld;
+	const UWorld* World = GetWorld();
+	if (!ensureAlways(IsValid(World)))
+	{
+		return;
+	}
+
+	if (!World->GetAuthGameMode())
+	{
+		return;
+	}
+
+	AAsteroidsGameState* AsteroidsGameState = Cast<AAsteroidsGameState>(UGameplayStatics::GetGameState(GetWorld()));
+	if (!ensureAlways(IsValid(AsteroidsGameState)))
+	{
+		return;
+	}
+
+	AsteroidsGameState->AddToTeamScore(ScoreUpdateAmount);
+
+	AAsteroidsPlayerState* PlayerState = Cast<AAsteroidsPlayerState>(Pawn.GetPlayerState());
+	if (!ensureAlways(IsValid(PlayerState)))
+	{
+		return;
+	}
+
+	PlayerState->AddToScore(ScoreUpdateAmount);
 }
 
-bool UAsteroidsScoreManager::IsServerAuthority(UObject* WorldContextObject) const
+bool UAsteroidsScoreManager::IsNewHighScore(const APlayerState* PlayerState) const
 {
-	if (!WorldContextObject || !AuthoritativeServerWorld.IsValid())
+	if (!ensureAlways(IsValid(PlayerState)))
 	{
 		return false;
 	}
 
-	UWorld* CallingWorld = WorldContextObject->GetWorld();
-	if (!ensureAlways(IsValid(CallingWorld)))
-	{
-		return false;
-	}
-
-	return CallingWorld == AuthoritativeServerWorld && CallingWorld->GetNetMode() != NM_Client;
-}
-
-void UAsteroidsScoreManager::UpdatePlayerScore(const int ScoreUpdateAmount)
-{
-	PlayerScore += ScoreUpdateAmount;
-	OnPlayerScoreUpdated.Broadcast(PlayerScore);
-}
-
-bool UAsteroidsScoreManager::IsNewHighScore() const
-{
 	const UAsteroidsSaveGame* SavedGame = Cast<UAsteroidsSaveGame>(UGameplayStatics::LoadGameFromSlot("SaveGame", 0));
 	if (!IsValid(SavedGame))
 	{
@@ -57,6 +69,7 @@ bool UAsteroidsScoreManager::IsNewHighScore() const
 		return false;
 	}
 
+	const int PlayerScore = static_cast<int>(PlayerState->GetScore());
 	for (int i = 0; i < Max_High_Scores; ++i)
 	{
 		if (PlayerScore > HighScores[i].HighScore)
@@ -68,11 +81,22 @@ bool UAsteroidsScoreManager::IsNewHighScore() const
 	return false;
 }
 
-void UAsteroidsScoreManager::CheckIsHighScore() const
+void UAsteroidsScoreManager::CheckIsHighScore(const APlayerState& PlayerState) const
 {
-	if (IsNewHighScore())
+	if (IsNewHighScore(&PlayerState))
 	{
-		OnNewHighScore.Broadcast(PlayerScore);
+		if (!ensureAlways(IsValid(PlayerState.GetPawn())))
+		{
+			return;
+		}
+
+		const AAsteroidsPlayerState* AsteroidsPlayerState = Cast<AAsteroidsPlayerState>(&PlayerState);
+		if (!ensureAlways(IsValid(AsteroidsPlayerState)))
+		{
+			return;
+		}
+
+		AsteroidsPlayerState->OnNewHighScore.Broadcast(FHighScoreEventData(*PlayerState.GetPawn(), PlayerState.GetScore()));
 	}
 }
 
@@ -117,4 +141,35 @@ void UAsteroidsScoreManager::SetNewHighScores(const FHighScore& NewHighScore)
 	SavedGame->HighScores = HighScores;
 
 	UGameplayStatics::SaveGameToSlot(SavedGame, "SaveGame", 0);
+}
+
+int UAsteroidsScoreManager::GetCurrentScore(const APlayerState* PlayerState) const
+{
+	const AAsteroidsGameState* AsteroidsGameState = Cast<AAsteroidsGameState>(UGameplayStatics::GetGameState(PlayerState));
+	if (!ensureAlways(IsValid(AsteroidsGameState)))
+	{
+		return -1;
+	}
+
+	switch (AsteroidsGameState->GetGameModeType())
+	{
+		case EGameModeType::CoOp:
+		{
+			return AsteroidsGameState->GetTeamScore();
+		}
+
+		case EGameModeType::Competitive:
+		{
+			if (!ensureAlways(IsValid(PlayerState)))
+			{
+				return -1;
+			}
+
+			return PlayerState->GetScore();
+		}
+
+		default:
+			checkNoEntry();
+			return -1;
+	}
 }

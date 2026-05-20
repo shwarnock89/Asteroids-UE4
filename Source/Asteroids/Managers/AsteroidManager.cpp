@@ -3,6 +3,7 @@
 #include "AsteroidManager.h"
 
 #include "Asteroid.h"
+#include "AsteroidsPawn.h"
 #include "AsteroidsScoreManager.h"
 #include "Components/CapsuleComponent.h"
 #include "Utils/AsteroidSettings.h"
@@ -14,9 +15,11 @@ UAsteroidManager::UAsteroidManager()
 	SpawnMultiplier = 0;
 }
 
-void UAsteroidManager::HandleAsteroidDestroyed(AActor* DestroyedActor)
+void UAsteroidManager::HandleAsteroidDamaged(AActor* DamagedActor, float, const UDamageType*, AController* InstigatedBy, AActor*)
 {
-	const AAsteroid* Asteroid = Cast<AAsteroid>(DestroyedActor);
+	DamagedActor->Destroy();
+
+	const AAsteroid* Asteroid = Cast<AAsteroid>(DamagedActor);
 	const FVector AsteroidCurrentPos = Asteroid->GetActorLocation();
 	ESizes NewAsteroidSize = ESizes::None;
 	float ScoreIncreaseAmount = 0;
@@ -46,13 +49,24 @@ void UAsteroidManager::HandleAsteroidDestroyed(AActor* DestroyedActor)
 		return;
 	}
 
-	UAsteroidsScoreManager* ScoreManager = UAsteroidsScoreManager::GetScoreManager(*GetWorld());
+	const UAsteroidsScoreManager* ScoreManager = UAsteroidsScoreManager::GetScoreManager(*GetWorld());
 	if (!ensureAlways(IsValid(ScoreManager)))
 	{
 		return;
 	}
 
-	ScoreManager->UpdatePlayerScore(ScoreIncreaseAmount);
+	if (!ensureAlways(IsValid(InstigatedBy)))
+	{
+		return;
+	}
+
+	const AAsteroidsPawn* Pawn = Cast<AAsteroidsPawn>(InstigatedBy->GetPawn());
+	if (!ensureAlways(IsValid(Pawn)))
+	{
+		return;
+	}
+
+	ScoreManager->UpdatePlayerScore(ScoreIncreaseAmount, *Pawn);
 
 	if (bShouldSpawnNewAsteroids)
 	{
@@ -65,7 +79,7 @@ void UAsteroidManager::HandleAsteroidDestroyed(AActor* DestroyedActor)
 		for (int k = 0; k < SpawnMultiplier; ++k)
 		{
 			AAsteroid* NewAsteroid = CreateAsteroid(AsteroidCurrentPos, EStartSides::None, NewAsteroidSize);
-			if (!ensureAlways(IsValid(NewAsteroid) && IsValid(NewAsteroid->GetClass()) && NewAsteroid->GetClass()->ImplementsInterface(UWorldBoundsHandlingInterface::StaticClass())))
+			if (!ensureAlways(IsValid(NewAsteroid) && NewAsteroid->Implements<UWorldBoundsHandlingInterface>()))
 			{
 				return;
 			}
@@ -116,7 +130,7 @@ void UAsteroidManager::Initialize(FSubsystemCollectionBase& Collection)
 		return;
 	}
 
-	WorldBoundsVolumeSubsystem->OnWorldBoundsVolumeSpawned.BindLambda([this] (AWorldBoundsVolume* WorldBoundsVolume)
+	WorldBoundsVolumeSubsystem->OnWorldBoundsVolumeSpawned.BindLambda([this] (AWorldBoundsVolume*)
 	{
 		SpawnLevelInitialAsteroids(1);
 	});
@@ -166,7 +180,7 @@ AAsteroid* UAsteroidManager::CreateAsteroid(const FVector& StartPos, const EStar
 	}
 
 	Asteroid->Initialize(StartSide, Size);
-	Asteroid->OnDestroyed.AddDynamic(this, &UAsteroidManager::HandleAsteroidDestroyed);
+	Asteroid->OnTakeAnyDamage.AddDynamic(this, &UAsteroidManager::HandleAsteroidDamaged);
 	CurrentAsteroidCount++;
 	return Asteroid;
 }

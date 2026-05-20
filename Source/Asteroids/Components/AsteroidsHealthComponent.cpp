@@ -1,12 +1,9 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 #include "AsteroidsHealthComponent.h"
-#include "Asteroid.h"
 #include "AsteroidsScoreManager.h"
-#include "Components/CapsuleComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Particles/ParticleSystemComponent.h"
-#include "WorldBoundsVolume.h"
 
 UE_DEFINE_GAMEPLAY_TAG(FireComponentTag, "Component.Fire");
 UE_DEFINE_GAMEPLAY_TAG(SmokeComponentTag, "Component.Smoke");
@@ -38,7 +35,7 @@ void UAsteroidsHealthComponent::BeginPlay()
 	Super::BeginPlay();
 
 	const AActor* Owner = GetOwner();
-	if (!ensureAlways(IsValid(Owner) && IsValid(Owner->GetClass()) && Owner->GetClass()->ImplementsInterface(UWorldBoundsHandlingInterface::StaticClass())))
+	if (!ensureAlways(IsValid(Owner)))
 	{
 		return;
 	}
@@ -46,32 +43,11 @@ void UAsteroidsHealthComponent::BeginPlay()
 	SmokeComponent = Owner->FindComponentByTag<UParticleSystemComponent>(SmokeComponentTag.GetTag().GetTagName());
 	ExplosionComponent = Owner->FindComponentByTag<UParticleSystemComponent>(ExplosionComponentTag.GetTag().GetTagName());
 	FireComponent = Owner->FindComponentByTag<UParticleSystemComponent>(FireComponentTag.GetTag().GetTagName());
-
-	UCapsuleComponent* OwnerCapsule = IWorldBoundsHandlingInterface::Execute_GetCapsuleComponent(Owner);
-	if (!ensureAlways(IsValid(OwnerCapsule)))
-	{
-		return;
-	}
-
-	OwnerCapsule->OnComponentHit.AddDynamic(this, &UAsteroidsHealthComponent::OnHit);
 }
 
 void UAsteroidsHealthComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-
-	if (!ensureAlways(IsValid(GetOwner()) && IsValid(GetOwner()->GetClass()) && GetOwner()->GetClass()->ImplementsInterface(UWorldBoundsHandlingInterface::StaticClass())))
-	{
-		return;
-	}
-
-	UCapsuleComponent* OwnerCapsule = IWorldBoundsHandlingInterface::Execute_GetCapsuleComponent(GetOwner());
-	if (!ensureAlways(IsValid(OwnerCapsule)))
-	{
-		return;
-	}
-
-	OwnerCapsule->OnComponentHit.RemoveDynamic(this, &UAsteroidsHealthComponent::OnHit);
 }
 
 void UAsteroidsHealthComponent::HandleShieldDamage(const float DamageAmount)
@@ -209,7 +185,7 @@ void UAsteroidsHealthComponent::Server_RegenerateShields_Implementation(const fl
 	}
 }
 
-void UAsteroidsHealthComponent::OnHit(UPrimitiveComponent*, AActor* OtherActor, UPrimitiveComponent*, FVector, const FHitResult&)
+void UAsteroidsHealthComponent::HandleDamage(const float DamageAmount, const FDamageEvent&, AController*, AActor* DamageCauser)
 {
 	if (!ensureAlways(IsValid(GetOwner())))
 	{
@@ -228,16 +204,12 @@ void UAsteroidsHealthComponent::OnHit(UPrimitiveComponent*, AActor* OtherActor, 
 
 	bIsProcessingHit = true;
 
-	if (!ensureAlways(OtherActor))
+	if (!ensureAlways(DamageCauser))
 	{
 		return;
 	}
 
-	if (OtherActor->IsA<AAsteroid>())
-	{
-		Server_DealDamage(10);
-	}
-
+	Server_DealDamage(DamageAmount);
 	bIsProcessingHit = false;
 }
 

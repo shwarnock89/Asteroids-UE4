@@ -99,7 +99,7 @@ void AWorldBoundsVolume::HandleEndOverlap(UPrimitiveComponent*, AActor* OtherAct
 		return;
 	}
 
-	if (!ensureAlways(IsValid(OtherActor) && IsValid(OtherActor->GetClass()) && OtherActor->GetClass()->ImplementsInterface(UWorldBoundsHandlingInterface::StaticClass())))
+	if (!ensureAlways(IsValid(OtherActor) && OtherActor->Implements<UWorldBoundsHandlingInterface>()))
 	{
 		return;
 	}
@@ -140,7 +140,6 @@ void AWorldBoundsVolume::FlipActorWorldPosition(AActor& Actor) const
 
 	FVector NewLocation = CurrentLocation;
 	const FBox Bounds = GetComponentsBoundingBox();
-	const float CapsuleRadius = CapsuleComponent->GetScaledCapsuleRadius();
 
 	// Check X Bounds (Left/Right)
 	if (CurrentLocation.X > Bounds.Max.X)

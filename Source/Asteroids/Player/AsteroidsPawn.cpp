@@ -2,7 +2,7 @@
 #include "AsteroidsPawn.h"
 
 #include "AsteroidsHealthComponent.h"
-#include "AsteroidsMovementComponent.h"
+#include "AsteroidsPawnMovementComponent.h"
 #include "AsteroidsProjectile.h"
 #include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
@@ -30,7 +30,7 @@ AAsteroidsPawn::AAsteroidsPawn(const FObjectInitializer& ObjectInitializer)
 	}
 
 	RootComponent = CapsuleComponent;
-	MovementComponent = CreateDefaultSubobject<UAsteroidsMovementComponent>(TEXT("AsteroidsMovementComponent"));
+	MovementComponent = CreateDefaultSubobject<UAsteroidsPawnMovementComponent>(TEXT("AsteroidsMovementComponent"));
 	HealthComponent = CreateDefaultSubobject<UAsteroidsHealthComponent>(TEXT("AsteroidsHealthComponent"));
 }
 
@@ -192,7 +192,10 @@ void AAsteroidsPawn::Server_Fire_Implementation(const FInputActionValue&)
 			return;
 		}
 
-		AActor* SpawnedActor = World->SpawnActor(ProjectileClass, &SpawnLocation, &FireRotation);
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = this;
+		AActor* SpawnedActor = World->SpawnActor(ProjectileClass, &SpawnLocation, &FireRotation, SpawnParams);
 		if (!ensureAlways(IsValid(SpawnedActor)))
 		{
 			return;
@@ -217,7 +220,6 @@ void AAsteroidsPawn::Server_ShotTimerExpired_Implementation()
 {
 	bCanFire = true;
 }
-
 
 void AAsteroidsPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -248,4 +250,14 @@ void AAsteroidsPawn::SetPlayerColor() const
 	}
 
 	MaterialInstanceDynamic->SetVectorParameterValue("DiffuseColor", PlayerColor);
+}
+
+FVector AAsteroidsPawn::GetVelocity() const
+{
+	if (!ensureAlways(IsValid(MovementComponent)))
+	{
+		return FVector::ZeroVector;
+	}
+
+	return MovementComponent->GetVelocity();
 }
