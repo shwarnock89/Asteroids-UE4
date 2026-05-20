@@ -157,7 +157,7 @@ void UAsteroidsMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReas
 
 void UAsteroidsMovementComponent::OnRep_ServerState()
 {
-	if (ServerState.bTeleported)
+	if (ServerState.TeleportCount != LocalTeleportCount)
 	{
 		if (!IsValid(UpdatedComponent))
 		{
@@ -167,7 +167,8 @@ void UAsteroidsMovementComponent::OnRep_ServerState()
 		UpdatedComponent->SetWorldLocationAndRotation(ServerState.Position, ServerState.Rotation);
 
 		Velocity = ServerState.Velocity;
-		ServerState.bTeleported = false;
+		// Sync our local baseline history to match the current count
+		LocalTeleportCount = ServerState.TeleportCount;
 	}
 
 	TargetPosition = ServerState.Position;
@@ -192,5 +193,15 @@ void UAsteroidsMovementComponent::SetVelocity(const FVector& InVelocity)
 
 void UAsteroidsMovementComponent::HandleTeleportOccurred()
 {
-	ServerState.bTeleported = true;
+	if (!ensureAlways(IsValid(GetOwner())))
+	{
+		return;
+	}
+
+	if (GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	++ServerState.TeleportCount;
 }

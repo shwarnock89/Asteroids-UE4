@@ -101,10 +101,10 @@ private:
 	TWeakObjectPtr<UParticleSystemComponent> ExplosionComponent = nullptr;
 
 	UFUNCTION()
-	void OnRep_Health() const;
+	void OnRep_Health();
 
 	UFUNCTION()
-	void OnRep_Shields() const;
+	void OnRep_Shields();
 
 	UFUNCTION(Server, Reliable)
 	void Server_DealDamage(float Damage);
@@ -112,7 +112,8 @@ private:
 	UFUNCTION(Server, Reliable)
 	void Server_RegenerateShields(const float DeltaSeconds);
 
-	void HandleDamage(const float DamageAmount, const FDamageEvent& DamageEvent, AController* EventInstigator, AActor* DamageCauser);
+	UFUNCTION()
+	void HandleDamage(AActor* DamagedActor, const float Damage, const UDamageType* DamageType, AController* InstigatedBy, AActor* DamageCauser);
 
 	void HandleShieldDamage(const float DamageAmount);
 	void HandleHealthDamage(const float DamageAmount);

@@ -25,16 +25,15 @@ void UAsteroidsHealthComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 	DOREPLIFETIME(UAsteroidsHealthComponent, bIsDead);
 	DOREPLIFETIME(UAsteroidsHealthComponent, ShieldRegenTimer);
 	DOREPLIFETIME(UAsteroidsHealthComponent, bShieldTimerActive);
-
-	DOREPLIFETIME_CONDITION(UAsteroidsHealthComponent, PlayerCurrentHealth, COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UAsteroidsHealthComponent, PlayerCurrentShields, COND_OwnerOnly);
+	DOREPLIFETIME(UAsteroidsHealthComponent, PlayerCurrentHealth);
+	DOREPLIFETIME(UAsteroidsHealthComponent, PlayerCurrentShields);
 }
 
 void UAsteroidsHealthComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	const AActor* Owner = GetOwner();
+	AActor* Owner = GetOwner();
 	if (!ensureAlways(IsValid(Owner)))
 	{
 		return;
@@ -43,11 +42,21 @@ void UAsteroidsHealthComponent::BeginPlay()
 	SmokeComponent = Owner->FindComponentByTag<UParticleSystemComponent>(SmokeComponentTag.GetTag().GetTagName());
 	ExplosionComponent = Owner->FindComponentByTag<UParticleSystemComponent>(ExplosionComponentTag.GetTag().GetTagName());
 	FireComponent = Owner->FindComponentByTag<UParticleSystemComponent>(FireComponentTag.GetTag().GetTagName());
+
+	Owner->OnTakeAnyDamage.AddDynamic(this, &UAsteroidsHealthComponent::HandleDamage);
 }
 
 void UAsteroidsHealthComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
+
+	AActor* Owner = GetOwner();
+	if (!ensureAlways(IsValid(Owner)))
+	{
+		return;
+	}
+
+	Owner->OnTakeAnyDamage.RemoveDynamic(this, &UAsteroidsHealthComponent::HandleDamage);
 }
 
 void UAsteroidsHealthComponent::HandleShieldDamage(const float DamageAmount)
@@ -185,7 +194,7 @@ void UAsteroidsHealthComponent::Server_RegenerateShields_Implementation(const fl
 	}
 }
 
-void UAsteroidsHealthComponent::HandleDamage(const float DamageAmount, const FDamageEvent&, AController*, AActor* DamageCauser)
+void UAsteroidsHealthComponent::HandleDamage(AActor*, const float Damage, const UDamageType*, AController*, AActor* DamageCauser)
 {
 	if (!ensureAlways(IsValid(GetOwner())))
 	{
@@ -209,7 +218,7 @@ void UAsteroidsHealthComponent::HandleDamage(const float DamageAmount, const FDa
 		return;
 	}
 
-	Server_DealDamage(DamageAmount);
+	Server_DealDamage(Damage);
 	bIsProcessingHit = false;
 }
 
@@ -226,14 +235,10 @@ void UAsteroidsHealthComponent::Server_HandleHealthPackPickedUp_Implementation(c
 	OnRep_Health();
 }
 
-void UAsteroidsHealthComponent::OnRep_Health() const
+void UAsteroidsHealthComponent::OnRep_Health()
 {
 	const float HealthPercentage = PlayerCurrentHealth / PlayerMaxHealth;
-
-	if (PlayerMaxHealth > 0.0f)
-	{
-		OnPlayerHealthUpdated.Broadcast(HealthPercentage);
-	}
+	OnPlayerHealthUpdated.Broadcast(HealthPercentage);
 
 	if (HealthPercentage <= 0.25f)
 	{
@@ -261,11 +266,8 @@ void UAsteroidsHealthComponent::OnRep_Health() const
 	}
 }
 
-void UAsteroidsHealthComponent::OnRep_Shields() const
+void UAsteroidsHealthComponent::OnRep_Shields()
 {
-	if (PlayerMaxShields > 0.0f)
-	{
-		const float CurrentShieldPercentage = PlayerCurrentShields / PlayerMaxShields;
-		OnPlayerShieldUpdated.Broadcast(CurrentShieldPercentage);
-	}
+	const float CurrentShieldPercentage = PlayerCurrentShields / PlayerMaxShields;
+	OnPlayerShieldUpdated.Broadcast(CurrentShieldPercentage);
 }

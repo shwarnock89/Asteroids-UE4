@@ -19,7 +19,7 @@ struct FShipState
 	FRotator Rotation;
 
 	UPROPERTY()
-	bool bTeleported = false;
+	uint8 TeleportCount = 0;
 };
 
 UCLASS()
@@ -65,6 +65,8 @@ private:
 	FVector TargetLocation = FVector::ZeroVector;
 	FVector TargetVelocity = FVector::ZeroVector;
 	FRotator TargetRotation = FRotator::ZeroRotator;
+
+	uint8 LocalTeleportCount = 0;
 
 	virtual void BeginPlay() override;
 	virtual void TickComponent(const float DeltaTime, const ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;

@@ -22,7 +22,7 @@ struct FAsteroidState
 	FRotator Rotation;
 
 	UPROPERTY()
-	bool bTeleported = false;
+	uint8 TeleportCount = 0;
 };
 
 
@@ -69,6 +69,9 @@ private:
 	FVector TargetPosition = FVector::ZeroVector;
 	FVector TargetVelocity = FVector::ZeroVector;
 	FRotator TargetRotation = FRotator::ZeroRotator;
+
+	// Local tracking mirror variable (NOT replicated)
+	uint8 LocalTeleportCount = 0;
 
 	UPROPERTY()
 	TObjectPtr<UPrimitiveComponent> UpdatedComponent = nullptr;

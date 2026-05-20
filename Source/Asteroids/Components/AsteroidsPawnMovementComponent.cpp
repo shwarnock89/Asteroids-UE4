@@ -51,7 +51,17 @@ void UAsteroidsPawnMovementComponent::EndPlay(const EEndPlayReason::Type EndPlay
 
 void UAsteroidsPawnMovementComponent::HandleTeleportOccurred()
 {
-	ServerState.bTeleported = true;
+	if (!ensureAlways(IsValid(GetOwner())))
+	{
+		return;
+	}
+
+	if (!GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	++ServerState.TeleportCount;
 }
 
 void UAsteroidsPawnMovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -199,7 +209,7 @@ void UAsteroidsPawnMovementComponent::SetInputVector(const FVector2D& Input)
 
 void UAsteroidsPawnMovementComponent::OnRep_ServerState()
 {
-	if (ServerState.bTeleported)
+	if (ServerState.TeleportCount != LocalTeleportCount)
 	{
 		if (!ensureAlways(IsValid(UpdatedComponent)))
 		{
@@ -209,7 +219,7 @@ void UAsteroidsPawnMovementComponent::OnRep_ServerState()
 		UpdatedComponent->SetWorldLocationAndRotation(ServerState.Position, ServerState.Rotation);
 
 		Velocity = ServerState.Velocity;
-		ServerState.bTeleported = false;
+		LocalTeleportCount = ServerState.TeleportCount;
 	}
 
 	TargetLocation = ServerState.Position;
