@@ -68,6 +68,9 @@ private:
 
 	uint8 LocalTeleportCount = 0;
 
+	UFUNCTION(Server, Unreliable)
+	void Server_SendInputVector(const FVector2D& Input);
+
 	virtual void BeginPlay() override;
 	virtual void TickComponent(const float DeltaTime, const ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

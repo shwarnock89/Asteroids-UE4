@@ -55,7 +55,7 @@ void USessionSubsystem::CreateSession()
 	Settings.NumPublicConnections = 4;
 	Settings.bShouldAdvertise = true;
 	Settings.bAllowJoinInProgress = true;
-	Settings.bIsLANMatch = false;
+	Settings.bIsLANMatch = true;
 	Settings.bUsesPresence = true;
 	Settings.bAllowJoinViaPresence = true;
 	Settings.bUseLobbiesIfAvailable = false;
@@ -180,8 +180,8 @@ void USessionSubsystem::JoinSession()
 	OnFindSessionComplete_DelegateHandle = Sessions->AddOnFindSessionsCompleteDelegate_Handle(FOnFindSessionsCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnFindSessionCompleted));
 
 	SearchObject = MakeShareable(new FOnlineSessionSearch);
-	SearchObject->MaxSearchResults = 1;
-	SearchObject->bIsLanQuery = false;
+	SearchObject->MaxSearchResults = 20;
+	SearchObject->bIsLanQuery = true;
 
 	Sessions->FindSessions(*UniqueId, SearchObject.ToSharedRef());
 	UserMidCreateJoin.Emplace(UniqueId);
@@ -205,10 +205,17 @@ void USessionSubsystem::OnFindSessionCompleted(const bool bWasSuccessful)
 	}
 
 	Sessions->ClearOnFindSessionsCompleteDelegate_Handle(OnFindSessionComplete_DelegateHandle);
-	if (!ensureAlways(SearchObject.IsValid() && !SearchObject->SearchResults.IsEmpty()))
+	if (!ensureAlways(SearchObject.IsValid()))
 	{
 		UserMidCreateJoin.Remove(UniqueId);
 		OnJoinSessionFailed.Broadcast();
+		return;
+	}
+
+	if (SearchObject->SearchResults.IsEmpty())
+	{
+		UserMidCreateJoin.Remove(UniqueId);
+		OnNoJoinableSessionsFound.Broadcast();
 		return;
 	}
 

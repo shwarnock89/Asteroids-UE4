@@ -2,6 +2,7 @@
 
 #include "Components/CapsuleComponent.h"
 #include "Engine/OverlapResult.h"
+#include "GameFramework/PlayerState.h"
 #include "Interfaces/HitReactInterface.h"
 #include "WorldBoundsVolume.h"
 
@@ -165,7 +166,15 @@ void UAsteroidsPawnMovementComponent::TickComponent(const float DeltaTime, const
 	//-------------------------------------------------
 	if (bIsAutonomous && !bIsServer)
 	{
-		const FVector Error = TargetLocation - GetActorLocation();
+		APlayerState* PlayerState = PawnOwner->GetPlayerState();
+		if (!ensureAlways(IsValid(PlayerState)))
+		{
+			return;
+		}
+
+		const float OneWayPingSeconds = PlayerState->GetPingInMilliseconds() / 2000.0f;
+		const FVector ExtrapolatedTarget = TargetLocation + (TargetVelocity * OneWayPingSeconds);
+		const FVector Error = ExtrapolatedTarget - GetActorLocation();
 		const float ErrorSizeSq = Error.SizeSquared();
 
 		//-------------------------------------------------
@@ -173,32 +182,21 @@ void UAsteroidsPawnMovementComponent::TickComponent(const float DeltaTime, const
 		//-------------------------------------------------
 		if (ErrorSizeSq > FMath::Square(250.0f))
 		{
-			PawnOwner->SetActorLocation(TargetLocation);
+			PawnOwner->SetActorLocation(ExtrapolatedTarget);
 			PawnOwner->SetActorRotation(TargetRotation);
 			Velocity = TargetVelocity;
 		}
-
-		//-------------------------------------------------
-		// SMALL ERROR = SOFT CORRECTION
-		//-------------------------------------------------
-		else
+		else if (ErrorSizeSq > FMath::Square(15.0f))
 		{
+			//-------------------------------------------------
+			// SMALL ERROR = SOFT CORRECTION
+			//-------------------------------------------------
 			static constexpr float CorrectionSpeed = 8.0f;
 
 			const FVector Correction = Error * FMath::Clamp(DeltaTime * CorrectionSpeed, 0.0f, 1.0f);
 			PawnOwner->AddActorWorldOffset(Correction);
-
-			Velocity = FMath::VInterpTo(Velocity, TargetVelocity, DeltaTime, 8.0f);
-
-			const FQuat SmoothedRotation = FQuat::Slerp(PawnOwner->GetActorQuat(), TargetRotation.Quaternion(), DeltaTime * 8.f);
-			PawnOwner->SetActorRotation(SmoothedRotation);
 		}
 	}
-
-	//-------------------------------------------------
-	// CLEAR INPUT
-	//-------------------------------------------------
-	CurrentInput = FVector2D::ZeroVector;
 
 	//-------------------------------------------------
 	// SERVER UPDATES AUTHORITATIVE STATE
@@ -298,6 +296,23 @@ void UAsteroidsPawnMovementComponent::DoMovement(const float DeltaTime, const FR
 }
 
 void UAsteroidsPawnMovementComponent::SetInputVector(const FVector2D& Input)
+{
+	CurrentInput = Input;
+
+	if (!ensureAlways(IsValid(PawnOwner)))
+	{
+		return;
+	}
+
+	if (!PawnOwner->IsLocallyControlled() && !PawnOwner->HasAuthority())
+	{
+		return;
+	}
+
+	Server_SendInputVector(Input);
+}
+
+void UAsteroidsPawnMovementComponent::Server_SendInputVector_Implementation(const FVector2D& Input)
 {
 	CurrentInput = Input;
 }

@@ -11,6 +11,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCreateSessionFailed);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCreateSessionSuccess);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnJoinSessionFailed);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnJoinSessionSuccess);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnNoJoinableSessionsFound);
 
 UCLASS()
 class ASTEROIDS_API USessionSubsystem : public UGameInstanceSubsystem
@@ -36,6 +37,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FOnJoinSessionSuccess OnJoinSessionSuccess;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnNoJoinableSessionsFound OnNoJoinableSessionsFound;
 
 private:
 

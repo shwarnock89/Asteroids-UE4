@@ -59,6 +59,8 @@ void AAsteroidsPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	}
 
 	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AAsteroidsPawn::HandleMovement);
+	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Canceled, this, &AAsteroidsPawn::HandleMovement);
+	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &AAsteroidsPawn::HandleMovement);
 	EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Triggered, this, &AAsteroidsPawn::FireShot);
 }
 

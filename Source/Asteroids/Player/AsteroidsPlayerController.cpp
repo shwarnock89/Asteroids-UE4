@@ -15,7 +15,22 @@ void AAsteroidsPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	SetGameInput();
+
 	AssignCamera();
+}
+
+void AAsteroidsPlayerController::SetGameInput()
+{
+	if (!IsLocalPlayerController())
+	{
+		return;
+	}
+
+	const FInputModeGameOnly InputModeData;
+	SetInputMode(InputModeData);
+
+	bShowMouseCursor = false;
 }
 
 void AAsteroidsPlayerController::OnRep_PlayerState()

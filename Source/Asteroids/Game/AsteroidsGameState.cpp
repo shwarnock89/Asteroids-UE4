@@ -22,3 +22,19 @@ void AAsteroidsGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME(AAsteroidsGameState, GameModeType);
 	DOREPLIFETIME(AAsteroidsGameState, TeamScore);
 }
+
+void AAsteroidsGameState::AddToTeamScore(const int ScoreIncrease)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	TeamScore += ScoreIncrease;
+	OnRep_TeamScore();
+}
+
+void AAsteroidsGameState::OnRep_TeamScore()
+{
+	OnTeamScoreChanged.Broadcast(TeamScore);
+}

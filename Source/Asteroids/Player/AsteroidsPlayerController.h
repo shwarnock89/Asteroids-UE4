@@ -20,6 +20,8 @@ class AAsteroidsPlayerController : public APlayerController
 
 	virtual void OnRep_PlayerState() override;
 
+	void SetGameInput();
+
 	void InitHUD();
 
 	UPROPERTY(EditDefaultsOnly)
